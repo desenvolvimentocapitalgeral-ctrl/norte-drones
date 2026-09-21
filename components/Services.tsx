@@ -36,7 +36,7 @@ export function Services({ whatsappLink }: { whatsappLink: string | null }) {
         <div className="mt-12 flex justify-center">
           <WhatsAppButton
             whatsappLink={whatsappLink}
-            label="Solicitar orçamento para meu talhão"
+            label="Solicitar orçamento"
           />
         </div>
       </Container>
