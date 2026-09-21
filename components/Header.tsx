@@ -16,9 +16,11 @@ const NAV_ITEMS = [
 export function Header({
   whatsappLink,
   logoUrl,
+  logoUrlOnDark,
 }: {
   whatsappLink: string | null;
   logoUrl: string;
+  logoUrlOnDark: string;
 }) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -41,15 +43,13 @@ export function Header({
       <div className="container-nd flex h-16 items-center justify-between sm:h-20">
         <a href="#topo" className="flex items-center gap-2">
           <Image
-            src={logoUrl}
-            unoptimized={logoUrl.startsWith("http")}
+            src={scrolled ? logoUrl : logoUrlOnDark}
+            unoptimized={(scrolled ? logoUrl : logoUrlOnDark).startsWith("http")}
             alt="Norte Drones"
             width={168}
             height={44}
             priority
-            className={`h-8 w-auto object-contain sm:h-9 ${
-              scrolled ? "" : "drop-shadow-[0_1px_6px_rgba(0,0,0,0.35)]"
-            }`}
+            className="h-8 w-auto object-contain sm:h-9"
           />
         </a>
 
