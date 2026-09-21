@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     template: "%s | Norte Drones",
   },
   description:
-    "Norte Drones aplica tecnologia de precisão à pulverização agrícola no Tocantins: menos desperdício de insumo, mais uniformidade no talhão. Solicite um orçamento.",
+    "Norte Drones aplica tecnologia de precisão à pulverização agrícola no Tocantins: menos desperdício de insumo, mais uniformidade na lavoura. Solicite um orçamento.",
   keywords: [
     "drone agrícola",
     "pulverização com drone",

@@ -10,7 +10,7 @@ export function About({ imageUrl }: { imageUrl: string }) {
           <div className="order-2 lg:order-1">
             <SectionHeading
               eyebrow="Sobre a Norte Drones"
-              title="Precisão no talhão, presença no campo."
+              title="Precisão na lavoura, presença no campo."
             />
             <div className="mt-6 space-y-4 text-base leading-relaxed text-nd-graphite/85 sm:text-lg">
               <p>

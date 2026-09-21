@@ -16,7 +16,7 @@ export const services = [
     slug: "aplicacao-defensivos",
     name: "Aplicação de defensivos agrícolas",
     description:
-      "Pulverização de defensivos líquidos com drone agrícola, com controle de dose e cobertura sobre o talhão.",
+      "Pulverização de defensivos líquidos com drone agrícola, com controle de dose e cobertura sobre a área.",
     benefit:
       "Mais uniformidade na aplicação e potencial de redução de deriva e desperdício de insumo em relação a métodos convencionais.",
     icon: "spray",
@@ -49,7 +49,7 @@ export const whyUs = [
   {
     title: "Foco técnico",
     description:
-      "Equipamento e processo pensados para dose e cobertura precisas — não é discurso de tecnologia por tecnologia, é resultado no talhão.",
+      "Equipamento e processo pensados para dose e cobertura precisas — não é discurso de tecnologia por tecnologia, é resultado na lavoura.",
   },
   {
     title: "Agilidade",
@@ -79,7 +79,7 @@ export const howItWorks = [
     step: "02",
     title: "Avaliação da área",
     description:
-      "Levantamento das informações do talhão para dimensionar a aplicação.",
+      "Levantamento das informações da área para dimensionar a aplicação.",
   },
   {
     step: "03",
