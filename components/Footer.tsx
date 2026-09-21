@@ -2,8 +2,8 @@ import Image from "next/image";
 import { Container } from "./Container";
 import { getSiteContent } from "@/lib/content-store";
 
-export function Footer({ logoUrl }: { logoUrl: string }) {
-  const { contacts } = getSiteContent();
+export async function Footer({ logoUrl }: { logoUrl: string }) {
+  const { contacts } = await getSiteContent();
   const year = new Date().getFullYear();
 
   return (

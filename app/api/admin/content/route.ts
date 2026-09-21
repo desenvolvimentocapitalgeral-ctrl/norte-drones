@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 // mas mantemos aqui uma validação simples adicional dos dados recebidos.
 
 export async function GET() {
-  const content = getSiteContent();
+  const content = await getSiteContent();
   return NextResponse.json(content);
 }
 
@@ -38,7 +38,7 @@ export async function PUT(request: NextRequest) {
   };
 
   try {
-    saveSiteContent(sanitized);
+    await saveSiteContent(sanitized);
   } catch (err) {
     return NextResponse.json(
       { error: "Não foi possível salvar. " + (err as Error).message },

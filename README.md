@@ -29,27 +29,14 @@ Gere um segredo forte, por exemplo: `openssl rand -hex 32`.
 - Após logar, `/admin` permite editar: WhatsApp (número + mensagem padrão), telefone, e-mail, Instagram (usuário + link), área de atuação e as imagens do site (hero, foto da seção "Sobre", logo clara e logo escura).
 - Essas informações alimentam o site inteiro (cabeçalho, hero, seção de contato, rodapé) — não precisa editar código para trocar um número de telefone ou uma foto.
 
-### Imagens do site — Vercel Blob
+### Persistência — Vercel Blob
 
-Ao contrário dos contatos (texto), a troca de imagem pelo `/admin` **já persiste de verdade em produção**, usando o [Vercel Blob](https://vercel.com/docs/storage/vercel-blob):
+Tanto os contatos (texto) quanto as imagens editadas pelo `/admin` **persistem de verdade em produção**, usando o [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) — sem banco de dados:
 
 - Configure `BLOB_READ_WRITE_TOKEN` (crie um Blob Store em Project Settings → Storage na Vercel; em produção a variável é preenchida automaticamente ao conectar o store ao projeto).
-- Cada imagem é enviada sempre para o mesmo caminho no Blob (`site/hero.jpg`, `site/about.jpg`, `site/logo-light.png`, `site/logo-dark.png`), sobrescrevendo a anterior — não precisa de banco de dados para lembrar "qual é a imagem atual".
-- Sem `BLOB_READ_WRITE_TOKEN` configurado (ex.: rodando local sem `.env.local` preenchido), o site usa as imagens estáticas originais em `public/`, e o upload pelo `/admin` retorna erro explicando o que falta.
-- Lógica em `lib/site-images.ts` (leitura) e `app/api/admin/images/route.ts` (upload).
-
-### ⚠️ Persistência dos dados do admin em produção — leia antes de publicar
-
-Os dados são salvos em um arquivo JSON (`data/site-content.json`). Isso funciona perfeitamente:
-- **Em desenvolvimento local** (`npm run dev`), o arquivo é gravado no disco normalmente e persiste entre reinícios.
-- **Em produção na Vercel**, o sistema de arquivos do deploy é **somente leitura**. O código já contorna isso gravando em `/tmp` durante o build atual, mas **`/tmp` não é compartilhado nem persistente entre requisições, instâncias ou deploys** — ou seja, uma alteração feita pelo admin pode "sumir" quando a função serverless reiniciar ou em um novo deploy.
-
-**Antes de divulgar o site publicamente**, troque `lib/content-store.ts` por uma leitura/escrita em um banco de verdade. Opções simples de integrar num projeto Vercel:
-- [Vercel KV](https://vercel.com/docs/storage/vercel-kv) (Redis gerenciado, mais simples de trocar aqui)
-- [Vercel Postgres](https://vercel.com/docs/storage/vercel-postgres) ou Supabase, se quiser algo mais robusto
-- Um banco SQLite gerenciado externamente (ex.: Turso)
-
-A interface (`getSiteContent` / `saveSiteContent` em `lib/content-store.ts`) já está isolada exatamente para facilitar essa troca sem mexer no resto do site.
+- Cada coisa editável é salva sempre no mesmo caminho no Blob (`site/content.json` para os contatos; `site/hero.jpg`, `site/about.jpg`, `site/logo-light.png`, `site/logo-dark.png` para as imagens), sobrescrevendo o anterior — não precisa de banco de dados para lembrar "qual é o valor atual".
+- Sem `BLOB_READ_WRITE_TOKEN` configurado (ex.: rodando local sem `.env.local` preenchido), os contatos caem no arquivo `data/site-content.json` e as imagens caem nos arquivos estáticos originais em `public/` — útil para rodar localmente sem depender do Blob.
+- Lógica em `lib/content-store.ts` (contatos) e `lib/site-images.ts` + `app/api/admin/images/route.ts` (imagens).
 
 ## Estrutura do projeto
 
@@ -88,8 +75,7 @@ Seguindo a instrução de não inventar informação, os pontos abaixo ficaram c
 1. Suba este projeto para um repositório Git (GitHub/GitLab/Bitbucket).
 2. Importe o repositório na Vercel.
 3. Configure as variáveis de ambiente (`ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`, `NEXT_PUBLIC_SITE_URL`) em Project Settings → Environment Variables.
-4. Crie um Blob Store em Project Settings → Storage e conecte ao projeto (preenche `BLOB_READ_WRITE_TOKEN` automaticamente) para a troca de imagens pelo `/admin` persistir.
-5. Antes de divulgar o link publicamente, resolva a persistência dos contatos do admin (seção acima) — as imagens já persistem via Blob.
+4. Crie um Blob Store em Project Settings → Storage e conecte ao projeto (preenche `BLOB_READ_WRITE_TOKEN` automaticamente) para os contatos e as imagens editados pelo `/admin` persistirem.
 
 ## Continuando no Claude Code
 

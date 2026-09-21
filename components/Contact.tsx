@@ -3,8 +3,8 @@ import { SectionHeading } from "./SectionHeading";
 import { getSiteContent, buildWhatsAppLink } from "@/lib/content-store";
 import { WhatsAppButton } from "./WhatsAppButton";
 
-export function Contact() {
-  const { contacts } = getSiteContent();
+export async function Contact() {
+  const { contacts } = await getSiteContent();
   const whatsappLink = buildWhatsAppLink(contacts);
 
   const items = [

@@ -1,5 +1,7 @@
+import "server-only";
 import fs from "node:fs";
 import path from "node:path";
+import { head, put } from "@vercel/blob";
 
 export type SiteContacts = {
   whatsappNumber: string; // apenas digitos, com DDI+DDD, ex: 5563999999999
@@ -18,51 +20,66 @@ export type SiteContent = {
 
 const SEED_PATH = path.join(process.cwd(), "data", "site-content.json");
 
-// Em produção na Vercel o sistema de arquivos do projeto é somente leitura;
-// apenas /tmp é gravável, e /tmp NÃO é persistente entre deploys/instâncias.
-// Por isso, em produção (VERCEL=1) as edições feitas pelo /admin ficam
-// valendo apenas enquanto aquela instância da função estiver "quente".
-// Para persistência real em produção, troque este arquivo por uma leitura/
-// escrita em um banco (Vercel KV, Postgres, Supabase, etc.) — ver README.
-const RUNTIME_PATH = process.env.VERCEL
-  ? path.join("/tmp", "site-content.runtime.json")
-  : SEED_PATH;
+// Mesmo padrão das imagens em lib/site-images.ts: o JSON de contatos é
+// salvo no Vercel Blob sempre no mesmo pathname (sobrescrevendo), então o
+// Blob é a fonte da verdade em produção — sem precisar de banco de dados.
+// Sem BLOB_READ_WRITE_TOKEN configurado (dev local sem Blob), cai para o
+// arquivo em disco (data/site-content.json), que persiste normalmente.
+const CONTENT_PATHNAME = "site/content.json";
 
-function readJsonSafe(filePath: string): SiteContent | null {
+const DEFAULT_CONTENT: SiteContent = {
+  contacts: {
+    whatsappNumber: "",
+    whatsappMessage: "",
+    phone: "",
+    email: "",
+    instagramHandle: "",
+    instagramUrl: "",
+    address: "",
+    areaServed: "",
+  },
+};
+
+function readSeedFromDisk(): SiteContent | null {
   try {
-    const raw = fs.readFileSync(filePath, "utf-8");
+    const raw = fs.readFileSync(SEED_PATH, "utf-8");
     return JSON.parse(raw) as SiteContent;
   } catch {
     return null;
   }
 }
 
-export function getSiteContent(): SiteContent {
-  const runtime = process.env.VERCEL ? readJsonSafe(RUNTIME_PATH) : null;
-  const seed = readJsonSafe(SEED_PATH);
-  return (
-    runtime ??
-    seed ?? {
-      contacts: {
-        whatsappNumber: "",
-        whatsappMessage: "",
-        phone: "",
-        email: "",
-        instagramHandle: "",
-        instagramUrl: "",
-        address: "",
-        areaServed: "",
-      },
-    }
-  );
+async function readFromBlob(): Promise<SiteContent | null> {
+  try {
+    const blob = await head(CONTENT_PATHNAME);
+    const res = await fetch(blob.url, { cache: "no-store" });
+    if (!res.ok) return null;
+    return (await res.json()) as SiteContent;
+  } catch {
+    return null;
+  }
 }
 
-export function saveSiteContent(content: SiteContent): void {
-  const dir = path.dirname(RUNTIME_PATH);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+export async function getSiteContent(): Promise<SiteContent> {
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    const fromBlob = await readFromBlob();
+    return fromBlob ?? readSeedFromDisk() ?? DEFAULT_CONTENT;
   }
-  fs.writeFileSync(RUNTIME_PATH, JSON.stringify(content, null, 2), "utf-8");
+  return readSeedFromDisk() ?? DEFAULT_CONTENT;
+}
+
+export async function saveSiteContent(content: SiteContent): Promise<void> {
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    await put(CONTENT_PATHNAME, JSON.stringify(content, null, 2), {
+      access: "public",
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      contentType: "application/json",
+      cacheControlMaxAge: 60,
+    });
+    return;
+  }
+  fs.writeFileSync(SEED_PATH, JSON.stringify(content, null, 2), "utf-8");
 }
 
 export function buildWhatsAppLink(contacts: SiteContacts): string | null {
