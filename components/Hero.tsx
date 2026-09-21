@@ -28,6 +28,16 @@ export function Hero({
             "linear-gradient(90deg, rgba(11,61,46,0.95) 10%, rgba(11,61,46,0.55) 55%, rgba(11,61,46,0.25) 100%)",
         }}
       />
+      {/* Esconde a marca d'água da arte original (símbolo "N") que ocupa a
+          metade inferior da foto-fonte, sem precisar recortar a imagem tão
+          curto a ponto de forçar um zoom que borra a foto. */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(180deg, rgba(11,61,46,0) 38%, rgba(11,61,46,0.9) 58%, rgba(11,61,46,1) 68%)",
+        }}
+      />
 
       <Container className="relative z-10 py-32 sm:py-40">
         <div className="max-w-xl animate-fadeUp">

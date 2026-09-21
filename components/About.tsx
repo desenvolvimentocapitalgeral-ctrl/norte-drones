@@ -36,7 +36,16 @@ export function About({ imageUrl }: { imageUrl: string }) {
                 fill
                 quality={90}
                 sizes="(min-width: 1024px) 45vw, 100vw"
-                className="object-cover"
+                className="object-cover object-top"
+              />
+              {/* Esconde a marca d'água da arte original (símbolo "N") que
+                  aparece no rodapé da foto-fonte. */}
+              <div
+                className="absolute inset-0"
+                style={{
+                  background:
+                    "linear-gradient(180deg, rgba(11,61,46,0) 78%, rgba(255,255,255,0.95) 92%, rgba(255,255,255,1) 100%)",
+                }}
               />
             </div>
           </div>

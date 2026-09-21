@@ -19,12 +19,9 @@ export async function ServiceArea() {
               {area}
             </p>
             <p className="mt-4 max-w-md text-sm leading-relaxed text-nd-graphite/75">
-              Atendimento a produtores rurais na região. O raio de atuação
-              pode ser ajustado em{" "}
-              <code className="rounded bg-black/5 px-1.5 py-0.5">
-                /admin
-              </code>{" "}
-              assim que confirmado.
+              Atendemos produtores rurais nessa região e avaliamos pedidos de
+              outras áreas mediante consulta. Fale com a gente para confirmar
+              a cobertura na sua propriedade.
             </p>
           </div>
           <div className="flex h-64 items-center justify-center rounded-2xl bg-white ring-1 ring-black/5 sm:h-80">
