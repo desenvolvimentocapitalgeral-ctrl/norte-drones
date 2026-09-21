@@ -7,7 +7,7 @@ export async function Footer({ logoUrl }: { logoUrl: string }) {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="bg-nd-graphite py-12 text-white/70">
+    <footer className="bg-nd-green-dark py-12 text-white/70">
       <Container>
         <div className="flex flex-col items-start justify-between gap-8 sm:flex-row sm:items-center">
           <Image

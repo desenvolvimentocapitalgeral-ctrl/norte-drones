@@ -22,7 +22,11 @@ export default async function HomePage() {
 
   return (
     <>
-      <Header whatsappLink={whatsappLink} logoUrl={images.logoLight} />
+      <Header
+        whatsappLink={whatsappLink}
+        logoUrl={images.logoLight}
+        logoUrlOnDark={images.logoDark}
+      />
       <main>
         <Hero whatsappLink={whatsappLink} imageUrl={images.hero} />
         <About imageUrl={images.about} />
