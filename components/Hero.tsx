@@ -2,11 +2,18 @@ import Image from "next/image";
 import { Container } from "./Container";
 import { WhatsAppButton } from "./WhatsAppButton";
 
-export function Hero({ whatsappLink }: { whatsappLink: string | null }) {
+export function Hero({
+  whatsappLink,
+  imageUrl,
+}: {
+  whatsappLink: string | null;
+  imageUrl: string;
+}) {
   return (
     <section id="topo" className="relative flex min-h-[92vh] items-center overflow-hidden bg-nd-green-dark">
       <Image
-        src="/images/hero-drone.jpg"
+        src={imageUrl}
+        unoptimized={imageUrl.startsWith("http")}
         alt="Drone agrícola da Norte Drones pulverizando lavoura ao entardecer"
         fill
         priority

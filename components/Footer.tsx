@@ -2,7 +2,7 @@ import Image from "next/image";
 import { Container } from "./Container";
 import { getSiteContent } from "@/lib/content-store";
 
-export function Footer() {
+export function Footer({ logoUrl }: { logoUrl: string }) {
   const { contacts } = getSiteContent();
   const year = new Date().getFullYear();
 
@@ -11,7 +11,8 @@ export function Footer() {
       <Container>
         <div className="flex flex-col items-start justify-between gap-8 sm:flex-row sm:items-center">
           <Image
-            src="/brand/logo-horizontal-dark.png"
+            src={logoUrl}
+            unoptimized={logoUrl.startsWith("http")}
             alt="Norte Drones"
             width={160}
             height={48}

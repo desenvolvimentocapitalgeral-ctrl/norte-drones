@@ -13,7 +13,13 @@ const NAV_ITEMS = [
   { href: "#contato", label: "Contato" },
 ];
 
-export function Header({ whatsappLink }: { whatsappLink: string | null }) {
+export function Header({
+  whatsappLink,
+  logoUrl,
+}: {
+  whatsappLink: string | null;
+  logoUrl: string;
+}) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -35,7 +41,8 @@ export function Header({ whatsappLink }: { whatsappLink: string | null }) {
       <div className="container-nd flex h-16 items-center justify-between sm:h-20">
         <a href="#topo" className="flex items-center gap-2">
           <Image
-            src="/brand/logo-horizontal-light.png"
+            src={logoUrl}
+            unoptimized={logoUrl.startsWith("http")}
             alt="Norte Drones"
             width={168}
             height={44}

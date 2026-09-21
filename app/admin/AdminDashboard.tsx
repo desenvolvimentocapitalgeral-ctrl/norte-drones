@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { SiteContacts } from "@/lib/content-store";
+import { SITE_IMAGE_FIELDS } from "@/lib/site-image-fields";
 
 const EMPTY: SiteContacts = {
   whatsappNumber: "",
@@ -90,11 +91,13 @@ export default function AdminDashboard() {
       </div>
 
       <div className="mt-4 rounded-xl bg-nd-amber/10 p-4 text-sm text-nd-graphite/80 ring-1 ring-nd-amber/30">
-        Em produção na Vercel, sem um banco de dados configurado, estas
-        alterações ficam válidas apenas enquanto a instância do servidor
+        Os contatos abaixo, em produção na Vercel e sem um banco de dados
+        configurado, ficam válidos apenas enquanto a instância do servidor
         estiver ativa (o sistema de arquivos do deploy é somente leitura).
-        Para persistência definitiva, veja a seção “Painel admin e
-        persistência” no README antes de divulgar o site.
+        Para persistência definitiva dos contatos, veja a seção “Painel
+        admin e persistência” no README antes de divulgar o site. As
+        imagens da seção abaixo são a exceção: ficam salvas de forma
+        permanente no Vercel Blob.
       </div>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-6 rounded-2xl bg-white p-8 shadow-card ring-1 ring-black/5">
@@ -167,6 +170,87 @@ export default function AdminDashboard() {
           {saving ? "Salvando..." : "Salvar alterações"}
         </button>
       </form>
+
+      <div className="mt-10 rounded-2xl bg-white p-8 shadow-card ring-1 ring-black/5">
+        <h2 className="text-lg font-bold text-nd-green-dark">Imagens do site</h2>
+        <p className="mt-1 text-sm text-nd-graphite/70">
+          Envie uma nova imagem para substituir a atual. A troca aparece no
+          site após a página recarregar.
+        </p>
+        <div className="mt-6 space-y-6">
+          {SITE_IMAGE_FIELDS.map((field) => (
+            <ImageUploader key={field.key} imageKey={field.key} label={field.label} accept={field.accept} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ImageUploader({
+  imageKey,
+  label,
+  accept,
+}: {
+  imageKey: string;
+  label: string;
+  accept: string;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    setUploading(true);
+    setMessage(null);
+    try {
+      const formData = new FormData();
+      formData.append("key", imageKey);
+      formData.append("file", file);
+      const res = await fetch("/api/admin/images", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage({ type: "error", text: data.error || "Erro ao enviar imagem." });
+        return;
+      }
+      setMessage({ type: "ok", text: "Imagem atualizada com sucesso." });
+    } catch {
+      setMessage({ type: "error", text: "Erro de conexão ao enviar imagem." });
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2 border-b border-black/5 pb-6 last:border-none last:pb-0 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p className="text-sm font-medium text-nd-graphite">{label}</p>
+        {message && (
+          <p
+            className={`mt-1 text-xs font-medium ${
+              message.type === "ok" ? "text-nd-green" : "text-red-600"
+            }`}
+          >
+            {message.text}
+          </p>
+        )}
+      </div>
+      <label className="inline-flex w-fit cursor-pointer items-center rounded-full border border-black/10 px-4 py-2 text-sm font-medium text-nd-graphite hover:bg-black/5">
+        {uploading ? "Enviando..." : "Trocar imagem"}
+        <input
+          type="file"
+          accept={accept}
+          onChange={handleFileChange}
+          disabled={uploading}
+          className="hidden"
+        />
+      </label>
     </div>
   );
 }

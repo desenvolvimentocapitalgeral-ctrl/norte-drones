@@ -2,7 +2,7 @@ import Image from "next/image";
 import { Container } from "./Container";
 import { SectionHeading } from "./SectionHeading";
 
-export function About() {
+export function About({ imageUrl }: { imageUrl: string }) {
   return (
     <section id="sobre" className="bg-white py-20 sm:py-28">
       <Container>
@@ -30,7 +30,8 @@ export function About() {
           <div className="order-1 lg:order-2">
             <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl shadow-card">
               <Image
-                src="/images/drone-action.jpg"
+                src={imageUrl}
+                unoptimized={imageUrl.startsWith("http")}
                 alt="Drone agrícola da Norte Drones em operação de pulverização"
                 fill
                 quality={90}

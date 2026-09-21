@@ -9,21 +9,23 @@ import { CtaSection } from "@/components/CtaSection";
 import { Contact } from "@/components/Contact";
 import { Footer } from "@/components/Footer";
 import { getSiteContent, buildWhatsAppLink } from "@/lib/content-store";
+import { getSiteImages } from "@/lib/site-images";
 
 // Renderizado dinamicamente para refletir imediatamente as alterações
-// salvas no painel /admin (WhatsApp, telefone, e-mail, Instagram, etc.).
+// salvas no painel /admin (WhatsApp, telefone, e-mail, Instagram, imagens etc.).
 export const dynamic = "force-dynamic";
 
-export default function HomePage() {
+export default async function HomePage() {
   const { contacts } = getSiteContent();
   const whatsappLink = buildWhatsAppLink(contacts);
+  const images = await getSiteImages();
 
   return (
     <>
-      <Header whatsappLink={whatsappLink} />
+      <Header whatsappLink={whatsappLink} logoUrl={images.logoLight} />
       <main>
-        <Hero whatsappLink={whatsappLink} />
-        <About />
+        <Hero whatsappLink={whatsappLink} imageUrl={images.hero} />
+        <About imageUrl={images.about} />
         <Services whatsappLink={whatsappLink} />
         <WhyUs />
         <HowItWorks />
@@ -31,7 +33,7 @@ export default function HomePage() {
         <CtaSection whatsappLink={whatsappLink} />
         <Contact />
       </main>
-      <Footer />
+      <Footer logoUrl={images.logoDark} />
     </>
   );
 }
