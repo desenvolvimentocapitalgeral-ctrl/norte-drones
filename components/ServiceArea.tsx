@@ -2,8 +2,8 @@ import { Container } from "./Container";
 import { SectionHeading } from "./SectionHeading";
 import { getSiteContent } from "@/lib/content-store";
 
-export function ServiceArea() {
-  const { contacts } = getSiteContent();
+export async function ServiceArea() {
+  const { contacts } = await getSiteContent();
   const area = contacts.areaServed || "[A DEFINIR — configure em /admin]";
 
   return (

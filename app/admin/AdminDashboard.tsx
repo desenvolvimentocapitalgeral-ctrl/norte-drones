@@ -90,15 +90,6 @@ export default function AdminDashboard() {
         </button>
       </div>
 
-      <div className="mt-4 rounded-xl bg-nd-amber/10 p-4 text-sm text-nd-graphite/80 ring-1 ring-nd-amber/30">
-        Os contatos abaixo, em produção na Vercel e sem um banco de dados
-        configurado, ficam válidos apenas enquanto a instância do servidor
-        estiver ativa (o sistema de arquivos do deploy é somente leitura).
-        Para persistência definitiva dos contatos, veja a seção “Painel
-        admin e persistência” no README antes de divulgar o site. As
-        imagens da seção abaixo são a exceção: ficam salvas de forma
-        permanente no Vercel Blob.
-      </div>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-6 rounded-2xl bg-white p-8 shadow-card ring-1 ring-black/5">
         <Field

@@ -16,7 +16,7 @@ import { getSiteImages } from "@/lib/site-images";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const { contacts } = getSiteContent();
+  const { contacts } = await getSiteContent();
   const whatsappLink = buildWhatsAppLink(contacts);
   const images = await getSiteImages();
 
