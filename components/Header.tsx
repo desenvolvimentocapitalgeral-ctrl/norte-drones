@@ -32,6 +32,13 @@ export function Header({
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  useEffect(() => {
+    document.body.style.overflow = open ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open]);
+
   return (
     <header
       className={`fixed inset-x-0 top-0 z-50 transition-colors duration-300 ${
@@ -91,7 +98,7 @@ export function Header({
       </div>
 
       {open && (
-        <div className="border-t border-black/5 bg-white lg:hidden">
+        <div className="fixed inset-x-0 top-16 bottom-0 overflow-y-auto border-t border-black/5 bg-white sm:top-20 lg:hidden">
           <Container>
             <nav className="flex flex-col py-4">
               {NAV_ITEMS.map((item) => (
