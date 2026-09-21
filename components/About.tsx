@@ -28,7 +28,7 @@ export function About({ imageUrl }: { imageUrl: string }) {
             </div>
           </div>
           <div className="order-1 lg:order-2">
-            <div className="relative aspect-[3/4] w-full max-w-sm mx-auto lg:max-w-none overflow-hidden rounded-2xl shadow-card">
+            <div className="relative aspect-[922/1600] w-full max-w-sm mx-auto overflow-hidden rounded-2xl shadow-card">
               <Image
                 src={imageUrl}
                 unoptimized={imageUrl.startsWith("http")}
@@ -37,6 +37,13 @@ export function About({ imageUrl }: { imageUrl: string }) {
                 quality={90}
                 sizes="(min-width: 1024px) 45vw, 100vw"
                 className="object-cover"
+              />
+              <div
+                className="absolute inset-x-0 bottom-0 h-16"
+                style={{
+                  background:
+                    "linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.35) 70%, rgba(255,255,255,0.65) 100%)",
+                }}
               />
             </div>
           </div>
