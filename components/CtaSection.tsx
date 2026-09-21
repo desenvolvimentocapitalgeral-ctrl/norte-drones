@@ -11,8 +11,8 @@ export function CtaSection({ whatsappLink }: { whatsappLink: string | null }) {
               Pronto para levar precisão à sua próxima aplicação?
             </h2>
             <p className="mt-3 text-white/80">
-              Fale agora com a Norte Drones e solicite um orçamento para o seu
-              talhão.
+              Fale agora com a Norte Drones e solicite um orçamento para a sua
+              lavoura.
             </p>
           </div>
           <WhatsAppButton whatsappLink={whatsappLink} label="Falar no WhatsApp agora" />
