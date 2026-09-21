@@ -14,7 +14,7 @@ export const SITE_IMAGES: Record<
   { pathname: string; fallback: string }
 > = {
   hero: { pathname: "site/hero.jpg", fallback: "/images/hero-drone-v2.jpg" },
-  about: { pathname: "site/about.jpg", fallback: "/images/drone-action-v2.jpg" },
+  about: { pathname: "site/about.jpg", fallback: "/images/about-operador.jpg" },
   logoLight: {
     pathname: "site/logo-light.png",
     fallback: "/brand/logo-horizontal-light.png",
