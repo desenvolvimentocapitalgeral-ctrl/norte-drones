@@ -28,24 +28,15 @@ export function About({ imageUrl }: { imageUrl: string }) {
             </div>
           </div>
           <div className="order-1 lg:order-2">
-            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl shadow-card">
+            <div className="relative aspect-[3/4] w-full max-w-sm mx-auto lg:max-w-none overflow-hidden rounded-2xl shadow-card">
               <Image
                 src={imageUrl}
                 unoptimized={imageUrl.startsWith("http")}
-                alt="Drone agrícola da Norte Drones em operação de pulverização"
+                alt="Operador da Norte Drones com o drone agrícola em campo"
                 fill
                 quality={90}
                 sizes="(min-width: 1024px) 45vw, 100vw"
-                className="object-cover object-top"
-              />
-              {/* Esconde a marca d'água da arte original (símbolo "N") que
-                  aparece no rodapé da foto-fonte. */}
-              <div
-                className="absolute inset-0"
-                style={{
-                  background:
-                    "linear-gradient(180deg, rgba(11,61,46,0) 78%, rgba(255,255,255,0.95) 92%, rgba(255,255,255,1) 100%)",
-                }}
+                className="object-cover"
               />
             </div>
           </div>
