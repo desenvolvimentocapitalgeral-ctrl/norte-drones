@@ -13,6 +13,7 @@ import {
   type FormatKey,
 } from "./postCanvas";
 import { PhotoPicker, resolvePhotoSrc, type PhotoSource } from "./PhotoPicker";
+import { shareOrDownloadFile } from "./shareFile";
 
 export function PostGenerator({
   siteImages,
@@ -122,12 +123,7 @@ export function PostGenerator({
     if (!canvas) return;
     canvas.toBlob((blob) => {
       if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `norte-drones-${template}-${format}.png`;
-      a.click();
-      URL.revokeObjectURL(url);
+      shareOrDownloadFile(blob, `norte-drones-${template}-${format}.png`);
     }, "image/png");
   }
 
@@ -153,7 +149,7 @@ export function PostGenerator({
           disabled={rendering}
           className="mt-6 rounded-full bg-nd-green-dark px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-nd-green disabled:opacity-60"
         >
-          Baixar imagem ({W}×{activeFormat.height})
+          Salvar imagem ({W}×{activeFormat.height})
         </button>
       </div>
 
