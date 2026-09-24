@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { SiteImageKey } from "@/lib/site-image-fields";
 
-export type PhotoSource = "hero" | "about" | "upload" | "ai";
+export type PhotoSource = "hero" | "about" | "upload" | "ai" | "video";
 
 export function resolvePhotoSrc(
   source: PhotoSource,
@@ -11,6 +11,7 @@ export function resolvePhotoSrc(
   uploadedPhoto: string | null,
   aiPhoto: string | null
 ): string | null {
+  if (source === "video") return null;
   if (source === "upload") return uploadedPhoto;
   if (source === "ai") return aiPhoto;
   if (source === "about") return siteImages.about;
@@ -26,6 +27,9 @@ export function PhotoPicker({
   setAiPhoto,
   canvasHeight,
   disabled = false,
+  allowVideo = false,
+  videoFileName,
+  onVideoSelected,
 }: {
   source: PhotoSource;
   setSource: (s: PhotoSource) => void;
@@ -35,6 +39,10 @@ export function PhotoPicker({
   setAiPhoto: (v: string | null) => void;
   canvasHeight: number;
   disabled?: boolean;
+  /** Vídeo mostra um botão extra "Enviar vídeo" (só faz sentido no gerador de vídeo). */
+  allowVideo?: boolean;
+  videoFileName?: string | null;
+  onVideoSelected?: (file: File) => void;
 }) {
   const [aiOpen, setAiOpen] = useState(false);
   const [prompt, setPrompt] = useState("");
@@ -51,6 +59,14 @@ export function PhotoPicker({
       setSource("upload");
     };
     reader.readAsDataURL(file);
+  }
+
+  function handleVideoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    onVideoSelected?.(file);
+    setSource("video");
   }
 
   async function callAi(
@@ -96,7 +112,9 @@ export function PhotoPicker({
 
   return (
     <div>
-      <p className="mb-2 text-sm font-medium text-nd-graphite">Foto</p>
+      <p className="mb-2 text-sm font-medium text-nd-graphite">
+        {allowVideo ? "Foto ou vídeo" : "Foto"}
+      </p>
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
@@ -140,6 +158,28 @@ export function PhotoPicker({
             className="hidden"
           />
         </label>
+        {allowVideo && (
+          <label
+            className={`cursor-pointer rounded-full px-4 py-2 text-sm font-medium transition ${
+              disabled ? "pointer-events-none opacity-50" : ""
+            } ${
+              source === "video"
+                ? "bg-nd-green-dark text-white"
+                : "bg-black/5 text-nd-graphite hover:bg-black/10"
+            }`}
+          >
+            {source === "video" && videoFileName
+              ? `🎬 ${videoFileName}`
+              : "🎬 Enviar vídeo"}
+            <input
+              type="file"
+              accept="video/mp4,video/webm,video/quicktime"
+              onChange={handleVideoUpload}
+              disabled={disabled}
+              className="hidden"
+            />
+          </label>
+        )}
         <button
           type="button"
           disabled={disabled}
