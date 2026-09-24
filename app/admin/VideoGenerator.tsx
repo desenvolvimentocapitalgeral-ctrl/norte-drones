@@ -379,9 +379,11 @@ export function VideoGenerator({
         )}
 
         {!supported && (
-          <p className="mt-3 text-xs font-medium text-red-600">
+          <p className="mt-3 max-w-xs text-center text-xs font-medium text-red-600">
             Seu navegador não suporta gravação de vídeo direto na página.
-            Tente no Chrome ou Edge no computador.
+            No computador, tente no Chrome ou Edge. No iPhone, isso funciona
+            a partir do iOS 14.3 — atualize o sistema (trocar de navegador
+            no iPhone não resolve, todos usam o mesmo motor do Safari).
           </p>
         )}
         {error && (
@@ -425,14 +427,20 @@ export function VideoGenerator({
         </div>
 
         {videoUrl && !recording && (
-          <video
-            src={videoUrl}
-            controls
-            loop
-            className={`mt-6 rounded-xl ring-1 ring-black/10 ${
-              format === "story" ? "w-full max-w-[220px]" : "w-full max-w-[320px]"
-            }`}
-          />
+          <>
+            <video
+              src={videoUrl}
+              controls
+              loop
+              playsInline
+              className={`mt-6 rounded-xl ring-1 ring-black/10 ${
+                format === "story" ? "w-full max-w-[220px]" : "w-full max-w-[320px]"
+              }`}
+            />
+            <p className="mt-2 text-center text-xs text-nd-graphite/50">
+              No celular, se o botão não funcionar: toque e segure o vídeo acima e escolha &quot;Salvar vídeo&quot;.
+            </p>
+          </>
         )}
       </div>
 

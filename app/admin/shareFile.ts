@@ -5,6 +5,16 @@
  * No desktop, ou quando o compartilhamento não está disponível, cai pro
  * download tradicional por link.
  */
+/** Converte um data URL (ex.: de canvas.toDataURL, que é síncrono) em Blob. */
+export function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, base64] = dataUrl.split(",");
+  const mime = header.match(/:(.*?);/)?.[1] ?? "application/octet-stream";
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+
 export async function shareOrDownloadFile(blob: Blob, filename: string) {
   if (typeof navigator !== "undefined" && navigator.canShare && navigator.share) {
     try {
