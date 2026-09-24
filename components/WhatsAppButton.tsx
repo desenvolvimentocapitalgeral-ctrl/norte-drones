@@ -25,7 +25,7 @@ export function WhatsAppButton({
   if (!whatsappLink) {
     return (
       <span
-        title="Número de WhatsApp ainda não configurado no painel /admin"
+        title="Número de WhatsApp ainda não configurado"
         className={`${base} ${style} cursor-not-allowed opacity-60 ${className}`}
       >
         <WhatsAppIcon />

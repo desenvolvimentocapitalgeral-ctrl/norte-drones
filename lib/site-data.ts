@@ -18,7 +18,7 @@ export const services = [
     description:
       "Pulverização de defensivos líquidos com drone agrícola, com controle de dose e cobertura sobre a área.",
     benefit:
-      "Mais uniformidade na aplicação e potencial de redução de deriva e desperdício de insumo em relação a métodos convencionais.",
+      "Mais uniformidade na aplicação, com potencial de reduzir deriva e desperdício de insumo frente a métodos convencionais.",
     icon: "spray",
   },
   {
@@ -49,12 +49,12 @@ export const whyUs = [
   {
     title: "Foco técnico",
     description:
-      "Equipamento e processo pensados para dose e cobertura precisas — não é discurso de tecnologia por tecnologia, é resultado na lavoura.",
+      "Equipamento e processo pensados para dose e cobertura precisas em cada aplicação, do planejamento à execução.",
   },
   {
     title: "Agilidade",
     description:
-      "O drone chega a áreas e janelas de aplicação onde trator ou avião tripulado enfrentam mais restrição.",
+      "O drone chega a áreas e aproveita janelas de aplicação onde trator ou avião tripulado têm mais dificuldade de operar.",
   },
   {
     title: "Presença no campo",
@@ -64,7 +64,7 @@ export const whyUs = [
   {
     title: "Raiz regional",
     description:
-      "Atuação local, próxima do produtor rural do Tocantins — não uma operação genérica de fora da região.",
+      "Atuação local, próxima do produtor rural do Tocantins — conhecemos a região e quem produz nela.",
   },
 ];
 

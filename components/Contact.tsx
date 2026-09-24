@@ -43,7 +43,7 @@ export async function Contact() {
         <SectionHeading
           eyebrow="Fale com a gente"
           title="Contato"
-          description="Os dados abaixo são gerenciados pelo painel administrativo do site."
+          description="Escolha o canal que preferir — respondemos o mais rápido possível."
         />
 
         <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
