@@ -53,6 +53,16 @@ export function VideoGenerator({
   const [title, setTitle] = useState("Aplicação agrícola de precisão");
   const [subtitle, setSubtitle] = useState("Fale com a Norte Drones");
   const [price, setPrice] = useState("Peça seu orçamento");
+  const [kicker, setKicker] = useState("Tecnologia que impulsiona");
+  const [highlight, setHighlight] = useState("O seu campo");
+  const [body, setBody] = useState(
+    "Com planejamento e tecnologia, a Norte Drones leva precisão à sua lavoura."
+  );
+  const [badge1, setBadge1] = useState("Aplicação com precisão");
+  const [badge2, setBadge2] = useState("Mais produtividade");
+  const [badge3, setBadge3] = useState("Segurança em todas as etapas");
+  const [location, setLocation] = useState("Porto Nacional, Palmas/TO e Região");
+  const [signature, setSignature] = useState("Juntos por mais resultado!");
   const [supported, setSupported] = useState(true);
   const [recording, setRecording] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -98,6 +108,12 @@ export function VideoGenerator({
           title,
           subtitle,
           price,
+          kicker,
+          highlight,
+          body,
+          badges: [badge1, badge2, badge3],
+          location,
+          signature,
           zoom: MAX_ZOOM,
           reveal: 1,
         });
@@ -124,6 +140,14 @@ export function VideoGenerator({
     title,
     subtitle,
     price,
+    kicker,
+    highlight,
+    body,
+    badge1,
+    badge2,
+    badge3,
+    location,
+    signature,
     siteImages,
     activeTemplate.needsPhoto,
   ]);
@@ -188,6 +212,12 @@ export function VideoGenerator({
             title,
             subtitle,
             price,
+            kicker,
+            highlight,
+            body,
+            badges: [badge1, badge2, badge3],
+            location,
+            signature,
             zoom,
             reveal,
           });
@@ -353,26 +383,42 @@ export function VideoGenerator({
           />
         )}
 
-        <Field
-          label={template === "frase" ? "Frase" : "Título"}
-          value={title}
-          onChange={setTitle}
-          disabled={recording}
-          textarea={template === "frase"}
-        />
-        <Field
-          label={template === "frase" ? "Assinatura (opcional)" : "Texto de apoio"}
-          value={subtitle}
-          onChange={setSubtitle}
-          disabled={recording}
-        />
-        {(template === "promocao" || template === "contato") && (
-          <Field
-            label={template === "contato" ? "Texto do botão" : "Selo de destaque"}
-            value={price}
-            onChange={setPrice}
-            disabled={recording}
-          />
+        {template === "campanha" ? (
+          <>
+            <Field label="Linha pequena (acima do título)" value={kicker} onChange={setKicker} disabled={recording} />
+            <Field label="Título" value={title} onChange={setTitle} disabled={recording} />
+            <Field label="Destaque (linha em verde-limão)" value={highlight} onChange={setHighlight} disabled={recording} />
+            <Field label="Texto de apoio" value={body} onChange={setBody} disabled={recording} textarea />
+            <Field label="Selo 1" value={badge1} onChange={setBadge1} disabled={recording} />
+            <Field label="Selo 2" value={badge2} onChange={setBadge2} disabled={recording} />
+            <Field label="Selo 3" value={badge3} onChange={setBadge3} disabled={recording} />
+            <Field label="Localização" value={location} onChange={setLocation} disabled={recording} />
+            <Field label="Assinatura (estilo manuscrito)" value={signature} onChange={setSignature} disabled={recording} />
+          </>
+        ) : (
+          <>
+            <Field
+              label={template === "frase" ? "Frase" : "Título"}
+              value={title}
+              onChange={setTitle}
+              disabled={recording}
+              textarea={template === "frase"}
+            />
+            <Field
+              label={template === "frase" ? "Assinatura (opcional)" : "Texto de apoio"}
+              value={subtitle}
+              onChange={setSubtitle}
+              disabled={recording}
+            />
+            {(template === "promocao" || template === "contato") && (
+              <Field
+                label={template === "contato" ? "Texto do botão" : "Selo de destaque"}
+                value={price}
+                onChange={setPrice}
+                disabled={recording}
+              />
+            )}
+          </>
         )}
 
         <p className="text-xs leading-relaxed text-nd-graphite/50">

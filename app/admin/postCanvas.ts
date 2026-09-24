@@ -5,7 +5,8 @@ export type TemplateKey =
   | "frase"
   | "promocao"
   | "diferencial"
-  | "contato";
+  | "contato"
+  | "campanha";
 export type FormatKey = "quadrado" | "story";
 
 export const FORMATS: { key: FormatKey; label: string; height: number }[] = [
@@ -18,6 +19,7 @@ export const TEMPLATES: {
   label: string;
   needsPhoto: boolean;
 }[] = [
+  { key: "campanha", label: "Campanha", needsPhoto: true },
   { key: "servico", label: "Post de serviço", needsPhoto: true },
   { key: "frase", label: "Frase", needsPhoto: false },
   { key: "promocao", label: "Promoção", needsPhoto: true },
@@ -126,6 +128,94 @@ function drawLogoTopLeft(
   ctx.drawImage(logo, margin, margin, w, h);
 }
 
+type BadgeIcon = "precisao" | "produtividade" | "seguranca";
+
+function drawBadgeIcon(
+  ctx: CanvasRenderingContext2D,
+  kind: BadgeIcon,
+  cx: number,
+  cy: number,
+  r: number
+) {
+  ctx.save();
+  ctx.strokeStyle = "#ffffff";
+  ctx.fillStyle = "#ffffff";
+  ctx.lineWidth = Math.max(2, r * 0.09);
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.stroke();
+
+  if (kind === "precisao") {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.12, 0, Math.PI * 2);
+    ctx.fill();
+    [0, 90, 180, 270].forEach((deg) => {
+      const a = (deg * Math.PI) / 180;
+      const x1 = cx + Math.cos(a) * r * 0.78;
+      const y1 = cy + Math.sin(a) * r * 0.78;
+      const x2 = cx + Math.cos(a) * r * 1.02;
+      const y2 = cy + Math.sin(a) * r * 1.02;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    });
+  } else if (kind === "produtividade") {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + r * 0.55);
+    ctx.quadraticCurveTo(cx - r * 0.6, cy + r * 0.1, cx, cy - r * 0.55);
+    ctx.quadraticCurveTo(cx + r * 0.6, cy + r * 0.1, cx, cy + r * 0.55);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + r * 0.5);
+    ctx.lineTo(cx, cy - r * 0.35);
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - r * 0.6);
+    ctx.lineTo(cx + r * 0.5, cy - r * 0.3);
+    ctx.lineTo(cx + r * 0.5, cy + r * 0.15);
+    ctx.quadraticCurveTo(cx + r * 0.5, cy + r * 0.55, cx, cy + r * 0.7);
+    ctx.quadraticCurveTo(cx - r * 0.5, cy + r * 0.55, cx - r * 0.5, cy + r * 0.15);
+    ctx.lineTo(cx - r * 0.5, cy - r * 0.3);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx - r * 0.22, cy);
+    ctx.lineTo(cx - r * 0.05, cy + r * 0.2);
+    ctx.lineTo(cx + r * 0.28, cy - r * 0.18);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawPin(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number
+) {
+  ctx.save();
+  ctx.fillStyle = COLORS.lime;
+  ctx.beginPath();
+  ctx.arc(x, y, size * 0.32, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(x - size * 0.28, y + size * 0.1);
+  ctx.lineTo(x + size * 0.28, y + size * 0.1);
+  ctx.lineTo(x, y + size * 0.7);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = COLORS.greenDark;
+  ctx.beginPath();
+  ctx.arc(x, y, size * 0.12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 export type DrawOpts = {
   template: TemplateKey;
   h: number;
@@ -138,6 +228,18 @@ export type DrawOpts = {
   zoom?: number;
   /** 0..1, how revealed the foreground (text/logo/badges) is. 1 = fully shown. */
   reveal?: number;
+  /** Campanha: pequena linha acima do título (ex.: "ESTÁ CHEGANDO A"). */
+  kicker?: string;
+  /** Campanha: segunda linha do título, em destaque (ex.: "SAFRA 26/27"). */
+  highlight?: string;
+  /** Campanha: parágrafo curto de apoio. */
+  body?: string;
+  /** Campanha: até 3 selos com ícone (texto curto cada). */
+  badges?: string[];
+  /** Campanha: linha de localização (ex.: "Porto Nacional, Palmas/TO e Região"). */
+  location?: string;
+  /** Campanha: assinatura em fonte manuscrita (ex.: "Juntos por uma safra melhor!"). */
+  signature?: string;
 };
 
 export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
@@ -151,8 +253,143 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     price,
     zoom = 1,
     reveal = 1,
+    kicker = "",
+    highlight = "",
+    body = "",
+    badges = [],
+    location = "",
+    signature = "",
   } = opts;
   ctx.clearRect(0, 0, W, H);
+
+  if (template === "campanha") {
+    if (photo) {
+      drawCover(ctx, photo, 0, 0, W, H, zoom);
+    } else {
+      ctx.fillStyle = COLORS.greenDark;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // painel diagonal escuro do lado esquerdo, pra dar legibilidade ao texto
+    // sem cobrir a foto inteira (como nos exemplos de campanha).
+    const splitX = W * 0.62;
+    const grad = ctx.createLinearGradient(0, 0, splitX + 140, 0);
+    grad.addColorStop(0, "rgba(11,61,46,0.97)");
+    grad.addColorStop(0.72, "rgba(11,61,46,0.9)");
+    grad.addColorStop(1, "rgba(11,61,46,0)");
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(splitX + 140, 0);
+    ctx.lineTo(splitX - 60, H);
+    ctx.lineTo(0, H);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.save();
+    ctx.globalAlpha = reveal;
+    ctx.translate(0, (1 - reveal) * 26);
+
+    ctx.textAlign = "left";
+    drawLogoTopLeft(ctx, logo, 60);
+
+    const leftMargin = 60;
+    const maxTextW = splitX - leftMargin - 40;
+    const footerH = location ? 60 : 0;
+    let cursorY = H * 0.18;
+
+    if (kicker) {
+      ctx.font = "700 30px Montserrat, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      wrapText(ctx, kicker.toUpperCase(), maxTextW).forEach((line) => {
+        ctx.fillText(line, leftMargin, cursorY);
+        cursorY += 38;
+      });
+      cursorY += 22;
+    }
+
+    if (title) {
+      ctx.font = "800 76px Montserrat, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      wrapText(ctx, title.toUpperCase(), maxTextW).forEach((line) => {
+        ctx.fillText(line, leftMargin, cursorY);
+        cursorY += 72;
+      });
+    }
+
+    if (highlight) {
+      ctx.font = "800 88px Montserrat, sans-serif";
+      ctx.fillStyle = COLORS.lime;
+      wrapText(ctx, highlight.toUpperCase(), maxTextW).forEach((line) => {
+        ctx.fillText(line, leftMargin, cursorY);
+        cursorY += 82;
+      });
+    }
+
+    cursorY += 14;
+    ctx.strokeStyle = COLORS.lime;
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(leftMargin, cursorY);
+    ctx.lineTo(leftMargin + 110, cursorY);
+    ctx.stroke();
+    cursorY += 44;
+
+    if (body) {
+      ctx.font = "500 30px Montserrat, sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      wrapText(ctx, body, maxTextW).forEach((line) => {
+        ctx.fillText(line, leftMargin, cursorY);
+        cursorY += 40;
+      });
+    }
+
+    const activeBadges = badges.filter(Boolean).slice(0, 3);
+    if (activeBadges.length) {
+      const icons: BadgeIcon[] = ["precisao", "produtividade", "seguranca"];
+      const maxBadgeY = H - footerH - 90;
+      const badgeY = Math.min(cursorY + 46, maxBadgeY);
+      const colW = maxTextW / activeBadges.length;
+      const badgeR = 32;
+      activeBadges.forEach((label, i) => {
+        const colX = leftMargin + i * colW;
+        drawBadgeIcon(ctx, icons[i % icons.length], colX + badgeR, badgeY, badgeR);
+        ctx.font = "700 22px Montserrat, sans-serif";
+        ctx.fillStyle = "#ffffff";
+        const lines = wrapText(ctx, label, colW - 16);
+        let ly = badgeY + badgeR + 34;
+        lines.slice(0, 2).forEach((line) => {
+          ctx.fillText(line, colX, ly);
+          ly += 28;
+        });
+      });
+      cursorY = badgeY + badgeR * 2 + 30;
+    }
+
+    if (location) {
+      const locY = Math.min(cursorY + 34, H - 40);
+      drawPin(ctx, leftMargin + 12, locY - 8, 26);
+      ctx.font = "600 26px Montserrat, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(location, leftMargin + 34, locY);
+    }
+
+    if (signature) {
+      ctx.textAlign = "right";
+      ctx.font = "700 46px Caveat, cursive";
+      ctx.fillStyle = COLORS.lime;
+      const lines = wrapText(ctx, signature, W - splitX - 40);
+      let sy = H - 70 - (lines.length - 1) * 40;
+      lines.forEach((line) => {
+        ctx.fillText(line, W - 60, sy);
+        sy += 40;
+      });
+      ctx.textAlign = "left";
+    }
+
+    ctx.restore();
+    return;
+  }
 
   if (
     template === "frase" ||
@@ -365,5 +602,6 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 export async function loadFonts() {
   await document.fonts.load("800 66px Montserrat");
   await document.fonts.load("500 36px Montserrat");
+  await document.fonts.load("700 46px Caveat");
   await document.fonts.ready;
 }
