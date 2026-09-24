@@ -344,8 +344,9 @@ export function VideoGenerator({
       setVideoBlob(blob);
       setVideoExt(extensionFor(mimeType));
       setVideoUrl(URL.createObjectURL(blob));
-    } catch {
-      setError("Não foi possível gerar o vídeo. Tente novamente.");
+    } catch (err) {
+      const detail = err instanceof Error ? ` (${err.name}: ${err.message})` : "";
+      setError(`Não foi possível gerar o vídeo. Tente novamente.${detail}`);
     } finally {
       setRecording(false);
     }
