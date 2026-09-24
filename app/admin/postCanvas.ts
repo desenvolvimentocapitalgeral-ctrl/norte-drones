@@ -8,12 +8,13 @@ export type TemplateKey =
   | "contato"
   | "campanha"
   | "campanha-direita"
-  | "moderno";
+  | "moderno"
+  | "neblina";
 export type FormatKey = "quadrado" | "story";
 
 export const FORMATS: { key: FormatKey; label: string; height: number }[] = [
   { key: "quadrado", label: "Quadrado (1080×1080)", height: 1080 },
-  { key: "story", label: "Story (1080×1920)", height: 1920 },
+  { key: "story", label: "Story / Reels (1080×1920)", height: 1920 },
 ];
 
 export const TEMPLATES: {
@@ -24,6 +25,7 @@ export const TEMPLATES: {
   { key: "campanha", label: "Campanha", needsPhoto: true },
   { key: "campanha-direita", label: "Campanha (painel à direita)", needsPhoto: true },
   { key: "moderno", label: "Moderno (com rodapé)", needsPhoto: true },
+  { key: "neblina", label: "Névoa (foto bem visível)", needsPhoto: true },
   { key: "servico", label: "Post de serviço", needsPhoto: true },
   { key: "frase", label: "Frase", needsPhoto: false },
   { key: "promocao", label: "Promoção", needsPhoto: true },
@@ -140,7 +142,7 @@ function drawLogoTopLeft(
   margin: number
 ) {
   if (!logo) return;
-  const w = 640;
+  const w = 760;
   const h = (logo.height / logo.width) * w;
   ctx.drawImage(logo, margin, margin, w, h);
 }
@@ -151,7 +153,7 @@ function drawLogoTopRight(
   margin: number
 ) {
   if (!logo) return;
-  const w = 640;
+  const w = 760;
   const h = (logo.height / logo.width) * w;
   ctx.drawImage(logo, W - margin - w, margin, w, h);
 }
@@ -560,12 +562,13 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.fillRect(0, 0, W, H);
     }
 
-    // gradiente suave no topo, só pra dar legibilidade ao título
-    const topOverlay = ctx.createLinearGradient(0, 0, 0, H * 0.55);
-    topOverlay.addColorStop(0, "rgba(11,61,46,0.88)");
+    // gradiente esfumaçado no topo — só o suficiente pra dar legibilidade,
+    // sem esconder a foto/vídeo de fundo.
+    const topOverlay = ctx.createLinearGradient(0, 0, 0, H * 0.5);
+    topOverlay.addColorStop(0, "rgba(11,61,46,0.55)");
     topOverlay.addColorStop(1, "rgba(11,61,46,0)");
     ctx.fillStyle = topOverlay;
-    ctx.fillRect(0, 0, W, H * 0.55);
+    ctx.fillRect(0, 0, W, H * 0.5);
 
     // formas decorativas: círculos concêntricos no canto e um ponto de destaque
     ctx.save();
@@ -599,7 +602,10 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
     const leftMargin = 60;
     const maxTextW = W - leftMargin * 2 - 40;
-    let cursorY = H * 0.36;
+    let cursorY = H * 0.38;
+
+    ctx.shadowColor = "rgba(0,0,0,0.55)";
+    ctx.shadowBlur = 18;
 
     if (kicker) {
       ctx.font = "700 26px Montserrat, sans-serif";
@@ -611,10 +617,12 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.fillStyle = COLORS.lime;
       roundRect(ctx, leftMargin, boxY, textW + padX * 2, boxH, boxH / 2);
       ctx.fill();
+      ctx.shadowColor = "transparent";
       ctx.fillStyle = COLORS.greenDark;
       ctx.textBaseline = "middle";
       ctx.fillText(label, leftMargin + padX, boxY + boxH / 2 + 1);
       ctx.textBaseline = "alphabetic";
+      ctx.shadowColor = "rgba(0,0,0,0.55)";
       cursorY += 50;
     }
 
@@ -636,62 +644,182 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       });
     }
 
-    // barra de rodapé sólida, com localização, selos e assinatura
-    const footerH = 230;
-    ctx.fillStyle = "rgba(11,61,46,0.94)";
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
+
+    // rodapé fino e esfumaçado — só uma faixa translúcida, a foto/vídeo
+    // continua visível por trás.
+    const footerH = 150;
+    const footerGrad = ctx.createLinearGradient(0, H - footerH, 0, H);
+    footerGrad.addColorStop(0, "rgba(11,61,46,0)");
+    footerGrad.addColorStop(0.4, "rgba(11,61,46,0.55)");
+    footerGrad.addColorStop(1, "rgba(11,61,46,0.8)");
+    ctx.fillStyle = footerGrad;
     ctx.fillRect(0, H - footerH, W, footerH);
     ctx.fillStyle = COLORS.lime;
-    ctx.fillRect(0, H - footerH, W, 6);
+    ctx.fillRect(0, H - footerH, W, 3);
 
     const activeBadges = badges.filter(Boolean).slice(0, 3);
     if (activeBadges.length) {
       const icons: BadgeIcon[] = ["precisao", "produtividade", "seguranca"];
-      const badgeY = H - footerH + 62;
+      const badgeY = H - footerH + 44;
       const colW = maxTextW / activeBadges.length;
-      const badgeR = 26;
+      const badgeR = 20;
       activeBadges.forEach((label, i) => {
         const colX = leftMargin + i * colW;
         drawBadgeIcon(ctx, icons[i % icons.length], colX + badgeR, badgeY, badgeR);
-        ctx.font = "700 20px Montserrat, sans-serif";
+        ctx.font = "700 18px Montserrat, sans-serif";
         ctx.fillStyle = "#ffffff";
         wrapText(ctx, label, colW - 16)
-          .slice(0, 2)
-          .forEach((line, li) => {
-            ctx.fillText(line, colX + badgeR * 2 + 14, badgeY - 4 + li * 24);
+          .slice(0, 1)
+          .forEach((line) => {
+            ctx.fillText(line, colX + badgeR * 2 + 12, badgeY + 5);
           });
       });
     }
 
-    const footerBottomY = H - footerH + (activeBadges.length ? 150 : 90);
+    const footerBottomY = H - 34;
 
     if (location) {
-      drawPin(ctx, leftMargin + 12, footerBottomY - 8, 28);
-      ctx.font = "600 26px Montserrat, sans-serif";
+      drawPin(ctx, leftMargin + 10, footerBottomY - 7, 24);
+      ctx.font = "600 24px Montserrat, sans-serif";
       ctx.fillStyle = "#ffffff";
-      ctx.fillText(location, leftMargin + 36, footerBottomY);
+      ctx.fillText(location, leftMargin + 32, footerBottomY);
     }
 
     if (signature) {
       ctx.textAlign = "right";
-      ctx.font = "700 44px Caveat, cursive";
-      const lines = wrapText(ctx, signature, W - leftMargin * 2);
-      const lineH = 42;
-      const padY = 16;
-      const boxH = lines.length * lineH + padY * 2 - 10;
-      const boxY = H - footerH - boxH - 24;
-      let widest = 0;
-      lines.forEach((line) => {
-        widest = Math.max(widest, ctx.measureText(line).width);
-      });
-      ctx.fillStyle = "rgba(11,61,46,0.6)";
-      roundRect(ctx, W - leftMargin - widest - 32, boxY, widest + 32, boxH, 18);
-      ctx.fill();
+      ctx.font = "700 34px Caveat, cursive";
       ctx.fillStyle = COLORS.lime;
-      let sy = boxY + padY + 32;
-      lines.forEach((line) => {
-        ctx.fillText(line, W - leftMargin - 16, sy);
-        sy += lineH;
+      ctx.fillText(signature, W - leftMargin, footerBottomY);
+      ctx.textAlign = "left";
+    }
+
+    ctx.restore();
+    return;
+  }
+
+  if (template === "neblina") {
+    if (photo) {
+      drawCover(ctx, photo, 0, 0, W, H, zoom);
+    } else {
+      ctx.fillStyle = COLORS.greenDark;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // quase sem véu: só uma leve névoa nas bordas pra caber o texto, a
+    // foto/vídeo continua praticamente inteira à mostra.
+    const topFog = ctx.createLinearGradient(0, 0, 0, H * 0.32);
+    topFog.addColorStop(0, "rgba(11,61,46,0.4)");
+    topFog.addColorStop(1, "rgba(11,61,46,0)");
+    ctx.fillStyle = topFog;
+    ctx.fillRect(0, 0, W, H * 0.32);
+
+    const bottomFog = ctx.createLinearGradient(0, H * 0.62, 0, H);
+    bottomFog.addColorStop(0, "rgba(11,61,46,0)");
+    bottomFog.addColorStop(1, "rgba(11,61,46,0.7)");
+    ctx.fillStyle = bottomFog;
+    ctx.fillRect(0, H * 0.62, W, H * 0.38);
+
+    ctx.save();
+    ctx.globalAlpha = reveal;
+    ctx.translate(0, (1 - reveal) * 26);
+
+    ctx.textAlign = "left";
+    drawLogoTopLeft(ctx, logo, 60);
+
+    const leftMargin = 60;
+    const maxTextW = W - leftMargin * 2 - 40;
+    const footerH = 110;
+    let cursorY = H * 0.4;
+
+    ctx.shadowColor = "rgba(0,0,0,0.6)";
+    ctx.shadowBlur = 20;
+
+    if (kicker) {
+      ctx.font = "700 28px Montserrat, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      wrapText(ctx, kicker.toUpperCase(), maxTextW).forEach((line) => {
+        ctx.fillText(line, leftMargin, cursorY);
+        cursorY += 36;
       });
+      cursorY += 20;
+    }
+
+    if (title) {
+      ctx.font = "800 56px Montserrat, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      wrapText(ctx, title.toUpperCase(), maxTextW).forEach((line) => {
+        ctx.fillText(line, leftMargin, cursorY);
+        cursorY += 58;
+      });
+    }
+
+    if (highlight) {
+      ctx.font = "800 90px Montserrat, sans-serif";
+      ctx.fillStyle = COLORS.lime;
+      wrapText(ctx, highlight.toUpperCase(), maxTextW).forEach((line) => {
+        ctx.fillText(line, leftMargin, cursorY);
+        cursorY += 82;
+      });
+    }
+
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
+
+    const activeBadges = badges.filter(Boolean).slice(0, 3);
+    if (activeBadges.length) {
+      const icons: BadgeIcon[] = ["precisao", "produtividade", "seguranca"];
+      const maxBadgeY = H - footerH - 40;
+      const badgeY = Math.min(cursorY + 40, maxBadgeY);
+      const colW = maxTextW / activeBadges.length;
+      const badgeR = 20;
+      ctx.shadowColor = "rgba(0,0,0,0.5)";
+      ctx.shadowBlur = 10;
+      activeBadges.forEach((label, i) => {
+        const colX = leftMargin + i * colW;
+        drawBadgeIcon(ctx, icons[i % icons.length], colX + badgeR, badgeY, badgeR);
+        ctx.font = "700 18px Montserrat, sans-serif";
+        ctx.fillStyle = "#ffffff";
+        wrapText(ctx, label, colW - 16)
+          .slice(0, 1)
+          .forEach((line) => {
+            ctx.fillText(line, colX + badgeR * 2 + 12, badgeY + 5);
+          });
+      });
+      ctx.shadowColor = "transparent";
+      ctx.shadowBlur = 0;
+    }
+
+    // faixa bem fina e translúcida no rodapé, só pra localização/assinatura
+    const footerGrad = ctx.createLinearGradient(0, H - footerH, 0, H);
+    footerGrad.addColorStop(0, "rgba(11,61,46,0)");
+    footerGrad.addColorStop(1, "rgba(11,61,46,0.55)");
+    ctx.fillStyle = footerGrad;
+    ctx.fillRect(0, H - footerH, W, footerH);
+
+    const footerBottomY = H - 34;
+
+    if (location) {
+      drawPin(ctx, leftMargin + 10, footerBottomY - 7, 24);
+      ctx.font = "600 24px Montserrat, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      ctx.shadowColor = "rgba(0,0,0,0.5)";
+      ctx.shadowBlur = 8;
+      ctx.fillText(location, leftMargin + 32, footerBottomY);
+      ctx.shadowColor = "transparent";
+      ctx.shadowBlur = 0;
+    }
+
+    if (signature) {
+      ctx.textAlign = "right";
+      ctx.font = "700 34px Caveat, cursive";
+      ctx.fillStyle = COLORS.lime;
+      ctx.shadowColor = "rgba(0,0,0,0.5)";
+      ctx.shadowBlur = 8;
+      ctx.fillText(signature, W - leftMargin, footerBottomY);
+      ctx.shadowColor = "transparent";
+      ctx.shadowBlur = 0;
       ctx.textAlign = "left";
     }
 
@@ -737,7 +865,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     }
 
     if (logo) {
-      const w = 560;
+      const w = 680;
       const h = (logo.height / logo.width) * w;
       ctx.drawImage(logo, (W - w) / 2, H - h - 80, w, h);
     }
@@ -780,7 +908,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.textAlign = "center";
 
     if (logo) {
-      const w = 640;
+      const w = 760;
       const h = (logo.height / logo.width) * w;
       ctx.drawImage(logo, (W - w) / 2, H * 0.22, w, h);
     }
