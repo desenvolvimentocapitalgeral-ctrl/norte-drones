@@ -23,9 +23,19 @@ const REVEAL_END = 1.3;
 const FADE_S = 0.4;
 const MAX_ZOOM = 1.12;
 
-function waitForVideoReady(video: HTMLVideoElement): Promise<void> {
+function waitForVideoReady(video: HTMLVideoElement, timeoutMs = 10000): Promise<void> {
   if (video.readyState >= 2 && video.videoWidth > 0) return Promise.resolve();
   return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(
+        new Error(
+          "Tempo esgotado esperando o vídeo enviado carregar (readyState=" +
+            video.readyState +
+            ")."
+        )
+      );
+    }, timeoutMs);
     const onReady = () => {
       cleanup();
       resolve();
@@ -35,11 +45,15 @@ function waitForVideoReady(video: HTMLVideoElement): Promise<void> {
       reject(new Error("Não foi possível carregar o vídeo enviado."));
     };
     const cleanup = () => {
+      clearTimeout(timer);
       video.removeEventListener("loadeddata", onReady);
       video.removeEventListener("error", onError);
     };
     video.addEventListener("loadeddata", onReady);
     video.addEventListener("error", onError);
+    // Em alguns navegadores móveis um <video> quase invisível (1x1px,
+    // opacity 0) não começa a baixar/decodificar sozinho — força aqui.
+    video.load();
   });
 }
 
@@ -255,10 +269,16 @@ export function VideoGenerator({
       let audioTracks: MediaStreamTrack[] = [];
       if (sourceVideo) {
         sourceVideo.currentTime = 0;
+        // navegadores móveis só deixam tocar um vídeo sem toque do
+        // usuário se ele estiver "muted" (volume = 0 sozinho não basta,
+        // especialmente no Safari/iOS). Isso não afeta o áudio capturado
+        // pelo captureStream() abaixo — só silencia a reprodução local.
+        sourceVideo.muted = true;
         sourceVideo.volume = 0;
         try {
           await sourceVideo.play();
-        } catch {
+        } catch (playErr) {
+          console.warn("Autoplay do vídeo enviado foi bloqueado:", playErr);
           // segue mesmo se o autoplay for bloqueado — os frames ainda são
           // lidos de onde o vídeo estiver.
         }
@@ -373,7 +393,8 @@ export function VideoGenerator({
             ref={sourceVideoRef}
             src={videoObjectUrl}
             playsInline
-            muted={false}
+            muted
+            preload="auto"
             className="absolute h-px w-px opacity-0"
             style={{ pointerEvents: "none" }}
           />
