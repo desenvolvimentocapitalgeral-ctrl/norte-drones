@@ -14,6 +14,7 @@ import {
   type MediaSource,
 } from "./postCanvas";
 import { PhotoPicker, resolvePhotoSrc, type PhotoSource } from "./PhotoPicker";
+import { shareOrDownloadFile } from "./shareFile";
 
 const DURATION_S = 5.5;
 const MAX_VIDEO_DURATION_S = 12;
@@ -51,6 +52,9 @@ function pickMimeType(): string | null {
     "video/webm;codecs=vp9",
     "video/webm;codecs=vp8",
     "video/webm",
+    // Safari (iOS e macOS) não grava webm — só entende mp4.
+    "video/mp4;codecs=h264",
+    "video/mp4",
   ];
   for (const type of candidates) {
     if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(type)) {
@@ -58,6 +62,10 @@ function pickMimeType(): string | null {
     }
   }
   return null;
+}
+
+function extensionFor(mimeType: string): string {
+  return mimeType.startsWith("video/mp4") ? "mp4" : "webm";
 }
 
 function easeOutCubic(t: number) {
@@ -96,6 +104,8 @@ export function VideoGenerator({
   const [recording, setRecording] = useState(false);
   const [progress, setProgress] = useState(0);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
+  const [videoExt, setVideoExt] = useState<string>("webm");
   const [error, setError] = useState<string | null>(null);
 
   const activeTemplate = TEMPLATES.find((t) => t.key === template)!;
@@ -214,6 +224,7 @@ export function VideoGenerator({
 
     setError(null);
     setVideoUrl(null);
+    setVideoBlob(null);
 
     try {
       await loadFonts();
@@ -330,6 +341,8 @@ export function VideoGenerator({
       }
 
       const blob = new Blob(chunks, { type: mimeType.split(";")[0] });
+      setVideoBlob(blob);
+      setVideoExt(extensionFor(mimeType));
       setVideoUrl(URL.createObjectURL(blob));
     } catch {
       setError("Não foi possível gerar o vídeo. Tente novamente.");
@@ -339,11 +352,8 @@ export function VideoGenerator({
   }
 
   function handleDownload() {
-    if (!videoUrl) return;
-    const a = document.createElement("a");
-    a.href = videoUrl;
-    a.download = `norte-drones-${template}-${format}.webm`;
-    a.click();
+    if (!videoBlob) return;
+    shareOrDownloadFile(videoBlob, `norte-drones-${template}-${format}.${videoExt}`);
   }
 
   return (
@@ -409,7 +419,7 @@ export function VideoGenerator({
               onClick={handleDownload}
               className="rounded-full border-2 border-nd-green-dark px-6 py-2.5 text-sm font-semibold text-nd-green-dark transition hover:bg-nd-green-dark hover:text-white"
             >
-              Baixar vídeo (.webm)
+              Salvar vídeo (.{videoExt})
             </button>
           )}
         </div>
