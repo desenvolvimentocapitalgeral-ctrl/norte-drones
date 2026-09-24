@@ -210,7 +210,7 @@ export function PostGenerator({
           />
         )}
 
-        {template === "campanha" ? (
+        {template === "campanha" || template === "campanha-direita" ? (
           <>
             <Field label="Linha pequena (acima do título)" value={kicker} onChange={setKicker} />
             <Field label="Título" value={title} onChange={setTitle} />

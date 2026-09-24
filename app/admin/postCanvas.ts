@@ -6,7 +6,8 @@ export type TemplateKey =
   | "promocao"
   | "diferencial"
   | "contato"
-  | "campanha";
+  | "campanha"
+  | "campanha-direita";
 export type FormatKey = "quadrado" | "story";
 
 export const FORMATS: { key: FormatKey; label: string; height: number }[] = [
@@ -20,6 +21,7 @@ export const TEMPLATES: {
   needsPhoto: boolean;
 }[] = [
   { key: "campanha", label: "Campanha", needsPhoto: true },
+  { key: "campanha-direita", label: "Campanha (painel à direita)", needsPhoto: true },
   { key: "servico", label: "Post de serviço", needsPhoto: true },
   { key: "frase", label: "Frase", needsPhoto: false },
   { key: "promocao", label: "Promoção", needsPhoto: true },
@@ -45,6 +47,17 @@ export function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+/** Imagem estática ou frame ao vivo de um <video> — ambos podem ser
+ * desenhados no canvas do mesmo jeito. */
+export type MediaSource = HTMLImageElement | HTMLVideoElement;
+
+function mediaSize(el: MediaSource): { width: number; height: number } {
+  if (el instanceof HTMLVideoElement) {
+    return { width: el.videoWidth, height: el.videoHeight };
+  }
+  return { width: el.width, height: el.height };
+}
+
 function wrapText(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -68,26 +81,28 @@ function wrapText(
 
 function drawCover(
   ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement,
+  img: MediaSource,
   x: number,
   y: number,
   w: number,
   h: number,
   zoom = 1
 ) {
-  const imgRatio = img.width / img.height;
+  const { width: iw, height: ih } = mediaSize(img);
+  if (!iw || !ih) return;
+  const imgRatio = iw / ih;
   const boxRatio = w / h;
   let sx, sy, sw, sh;
   if (imgRatio > boxRatio) {
-    sh = img.height;
+    sh = ih;
     sw = sh * boxRatio;
-    sx = (img.width - sw) / 2;
+    sx = (iw - sw) / 2;
     sy = 0;
   } else {
-    sw = img.width;
+    sw = iw;
     sh = sw / boxRatio;
     sx = 0;
-    sy = (img.height - sh) / 2;
+    sy = (ih - sh) / 2;
   }
   if (zoom > 1) {
     const zw = sw / zoom;
@@ -123,9 +138,20 @@ function drawLogoTopLeft(
   margin: number
 ) {
   if (!logo) return;
-  const w = 340;
+  const w = 460;
   const h = (logo.height / logo.width) * w;
   ctx.drawImage(logo, margin, margin, w, h);
+}
+
+function drawLogoTopRight(
+  ctx: CanvasRenderingContext2D,
+  logo: HTMLImageElement | null,
+  margin: number
+) {
+  if (!logo) return;
+  const w = 460;
+  const h = (logo.height / logo.width) * w;
+  ctx.drawImage(logo, W - margin - w, margin, w, h);
 }
 
 type BadgeIcon = "precisao" | "produtividade" | "seguranca";
@@ -219,7 +245,7 @@ function drawPin(
 export type DrawOpts = {
   template: TemplateKey;
   h: number;
-  photo: HTMLImageElement | null;
+  photo: MediaSource | null;
   logo: HTMLImageElement | null;
   title: string;
   subtitle: string;
@@ -305,7 +331,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
         ctx.fillText(line, leftMargin, cursorY);
         cursorY += 38;
       });
-      cursorY += 22;
+      cursorY += 44;
     }
 
     if (title) {
@@ -391,6 +417,139 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     return;
   }
 
+  if (template === "campanha-direita") {
+    if (photo) {
+      drawCover(ctx, photo, 0, 0, W, H, zoom);
+    } else {
+      ctx.fillStyle = COLORS.greenDark;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // mesmo painel diagonal da campanha, espelhado pro lado direito.
+    const panelStart = W * 0.38;
+    const grad = ctx.createLinearGradient(W, 0, panelStart - 140, 0);
+    grad.addColorStop(0, "rgba(11,61,46,0.97)");
+    grad.addColorStop(0.72, "rgba(11,61,46,0.9)");
+    grad.addColorStop(1, "rgba(11,61,46,0)");
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(W, 0);
+    ctx.lineTo(panelStart - 140, 0);
+    ctx.lineTo(panelStart + 60, H);
+    ctx.lineTo(W, H);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.save();
+    ctx.globalAlpha = reveal;
+    ctx.translate(0, (1 - reveal) * 26);
+
+    ctx.textAlign = "right";
+    drawLogoTopRight(ctx, logo, 60);
+
+    const rightMargin = 60;
+    const textX = W - rightMargin;
+    const maxTextW = W - panelStart - rightMargin - 40;
+    const footerH = location ? 60 : 0;
+    let cursorY = H * 0.18;
+
+    if (kicker) {
+      ctx.font = "700 30px Montserrat, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      wrapText(ctx, kicker.toUpperCase(), maxTextW).forEach((line) => {
+        ctx.fillText(line, textX, cursorY);
+        cursorY += 38;
+      });
+      cursorY += 44;
+    }
+
+    if (title) {
+      ctx.font = "800 76px Montserrat, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      wrapText(ctx, title.toUpperCase(), maxTextW).forEach((line) => {
+        ctx.fillText(line, textX, cursorY);
+        cursorY += 72;
+      });
+    }
+
+    if (highlight) {
+      ctx.font = "800 88px Montserrat, sans-serif";
+      ctx.fillStyle = COLORS.lime;
+      wrapText(ctx, highlight.toUpperCase(), maxTextW).forEach((line) => {
+        ctx.fillText(line, textX, cursorY);
+        cursorY += 82;
+      });
+    }
+
+    cursorY += 14;
+    ctx.strokeStyle = COLORS.lime;
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(textX, cursorY);
+    ctx.lineTo(textX - 110, cursorY);
+    ctx.stroke();
+    cursorY += 44;
+
+    if (body) {
+      ctx.font = "500 30px Montserrat, sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      wrapText(ctx, body, maxTextW).forEach((line) => {
+        ctx.fillText(line, textX, cursorY);
+        cursorY += 40;
+      });
+    }
+
+    const activeBadges = badges.filter(Boolean).slice(0, 3);
+    const badgeAreaLeft = textX - maxTextW;
+    if (activeBadges.length) {
+      const icons: BadgeIcon[] = ["precisao", "produtividade", "seguranca"];
+      const maxBadgeY = H - footerH - 90;
+      const badgeY = Math.min(cursorY + 46, maxBadgeY);
+      const colW = maxTextW / activeBadges.length;
+      const badgeR = 32;
+      ctx.textAlign = "left";
+      activeBadges.forEach((label, i) => {
+        const colX = badgeAreaLeft + i * colW;
+        drawBadgeIcon(ctx, icons[i % icons.length], colX + badgeR, badgeY, badgeR);
+        ctx.font = "700 22px Montserrat, sans-serif";
+        ctx.fillStyle = "#ffffff";
+        const lines = wrapText(ctx, label, colW - 16);
+        let ly = badgeY + badgeR + 34;
+        lines.slice(0, 2).forEach((line) => {
+          ctx.fillText(line, colX, ly);
+          ly += 28;
+        });
+      });
+      cursorY = badgeY + badgeR * 2 + 30;
+      ctx.textAlign = "right";
+    }
+
+    if (location) {
+      const locY = Math.min(cursorY + 34, H - 40);
+      ctx.textAlign = "left";
+      drawPin(ctx, badgeAreaLeft + 12, locY - 8, 26);
+      ctx.font = "600 26px Montserrat, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(location, badgeAreaLeft + 34, locY);
+      ctx.textAlign = "right";
+    }
+
+    if (signature) {
+      ctx.textAlign = "left";
+      ctx.font = "700 46px Caveat, cursive";
+      ctx.fillStyle = COLORS.lime;
+      const lines = wrapText(ctx, signature, panelStart - 40);
+      let sy = H - 70 - (lines.length - 1) * 40;
+      lines.forEach((line) => {
+        ctx.fillText(line, 60, sy);
+        sy += 40;
+      });
+    }
+
+    ctx.restore();
+    return;
+  }
+
   if (
     template === "frase" ||
     template === "diferencial" ||
@@ -429,7 +588,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     }
 
     if (logo) {
-      const w = 320;
+      const w = 400;
       const h = (logo.height / logo.width) * w;
       ctx.drawImage(logo, (W - w) / 2, H - h - 80, w, h);
     }
@@ -472,7 +631,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.textAlign = "center";
 
     if (logo) {
-      const w = 360;
+      const w = 460;
       const h = (logo.height / logo.width) * w;
       ctx.drawImage(logo, (W - w) / 2, H * 0.22, w, h);
     }

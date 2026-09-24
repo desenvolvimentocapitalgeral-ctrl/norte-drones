@@ -11,14 +11,40 @@ import {
   draw,
   type TemplateKey,
   type FormatKey,
+  type MediaSource,
 } from "./postCanvas";
 import { PhotoPicker, resolvePhotoSrc, type PhotoSource } from "./PhotoPicker";
 
 const DURATION_S = 5.5;
+const MAX_VIDEO_DURATION_S = 12;
 const REVEAL_START = 0.4;
 const REVEAL_END = 1.3;
 const FADE_S = 0.4;
 const MAX_ZOOM = 1.12;
+
+function waitForVideoReady(video: HTMLVideoElement): Promise<void> {
+  if (video.readyState >= 2 && video.videoWidth > 0) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const onReady = () => {
+      cleanup();
+      resolve();
+    };
+    const onError = () => {
+      cleanup();
+      reject(new Error("Não foi possível carregar o vídeo enviado."));
+    };
+    const cleanup = () => {
+      video.removeEventListener("loadeddata", onReady);
+      video.removeEventListener("error", onError);
+    };
+    video.addEventListener("loadeddata", onReady);
+    video.addEventListener("error", onError);
+  });
+}
+
+type VideoWithCapture = HTMLVideoElement & {
+  captureStream?: () => MediaStream;
+};
 
 function pickMimeType(): string | null {
   const candidates = [
@@ -45,11 +71,14 @@ export function VideoGenerator({
   siteImages: Record<SiteImageKey, string>;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const sourceVideoRef = useRef<HTMLVideoElement>(null);
   const [template, setTemplate] = useState<TemplateKey>("servico");
   const [format, setFormat] = useState<FormatKey>("quadrado");
   const [photoChoice, setPhotoChoice] = useState<PhotoSource>("about");
   const [uploadedPhoto, setUploadedPhoto] = useState<string | null>(null);
   const [aiPhoto, setAiPhoto] = useState<string | null>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoObjectUrl, setVideoObjectUrl] = useState<string | null>(null);
   const [title, setTitle] = useState("Aplicação agrícola de precisão");
   const [subtitle, setSubtitle] = useState("Fale com a Norte Drones");
   const [price, setPrice] = useState("Peça seu orçamento");
@@ -82,6 +111,17 @@ export function VideoGenerator({
     );
   }, []);
 
+  // Cria/limpa a URL do vídeo enviado quando o arquivo muda.
+  useEffect(() => {
+    if (!videoFile) {
+      setVideoObjectUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(videoFile);
+    setVideoObjectUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [videoFile]);
+
   // Static preview (settled frame) whenever not recording.
   useEffect(() => {
     if (recording) return;
@@ -94,10 +134,18 @@ export function VideoGenerator({
       try {
         await loadFonts();
         const logo = await loadImage(siteImages.logoDark);
-        let photo: HTMLImageElement | null = null;
+        let photo: MediaSource | null = null;
         if (activeTemplate.needsPhoto) {
-          const src = resolvePhotoSrc(photoChoice, siteImages, uploadedPhoto, aiPhoto);
-          if (src) photo = await loadImage(src);
+          if (photoChoice === "video" && videoObjectUrl) {
+            const video = sourceVideoRef.current;
+            if (video) {
+              await waitForVideoReady(video);
+              photo = video;
+            }
+          } else {
+            const src = resolvePhotoSrc(photoChoice, siteImages, uploadedPhoto, aiPhoto);
+            if (src) photo = await loadImage(src);
+          }
         }
         if (cancelled) return;
         draw(ctx, {
@@ -137,6 +185,7 @@ export function VideoGenerator({
     photoChoice,
     uploadedPhoto,
     aiPhoto,
+    videoObjectUrl,
     title,
     subtitle,
     price,
@@ -169,16 +218,48 @@ export function VideoGenerator({
     try {
       await loadFonts();
       const logo = await loadImage(siteImages.logoDark);
-      let photo: HTMLImageElement | null = null;
+      let photo: MediaSource | null = null;
+      let sourceVideo: HTMLVideoElement | null = null;
       if (activeTemplate.needsPhoto) {
-        const src = resolvePhotoSrc(photoChoice, siteImages, uploadedPhoto, aiPhoto);
-        if (src) photo = await loadImage(src);
+        if (photoChoice === "video" && videoObjectUrl) {
+          const video = sourceVideoRef.current;
+          if (!video) throw new Error("Vídeo não carregado.");
+          await waitForVideoReady(video);
+          sourceVideo = video;
+          photo = video;
+        } else {
+          const src = resolvePhotoSrc(photoChoice, siteImages, uploadedPhoto, aiPhoto);
+          if (src) photo = await loadImage(src);
+        }
       }
+
+      const clipDuration = sourceVideo
+        ? Math.min(sourceVideo.duration || DURATION_S, MAX_VIDEO_DURATION_S)
+        : DURATION_S;
 
       setRecording(true);
       setProgress(0);
 
-      const stream = canvas.captureStream(30);
+      const canvasStream = canvas.captureStream(30);
+      let audioTracks: MediaStreamTrack[] = [];
+      if (sourceVideo) {
+        sourceVideo.currentTime = 0;
+        sourceVideo.volume = 0;
+        try {
+          await sourceVideo.play();
+        } catch {
+          // segue mesmo se o autoplay for bloqueado — os frames ainda são
+          // lidos de onde o vídeo estiver.
+        }
+        const capturable = sourceVideo as VideoWithCapture;
+        if (typeof capturable.captureStream === "function") {
+          audioTracks = capturable.captureStream().getAudioTracks();
+        }
+      }
+      const stream = new MediaStream([
+        ...canvasStream.getVideoTracks(),
+        ...audioTracks,
+      ]);
       const chunks: BlobPart[] = [];
       const recorder = new MediaRecorder(stream, { mimeType });
       recorder.ondataavailable = (e) => {
@@ -196,10 +277,10 @@ export function VideoGenerator({
       await new Promise<void>((resolve) => {
         function frame(now: number) {
           const t = (now - startTime) / 1000;
-          const p = Math.min(1, t / DURATION_S);
+          const p = Math.min(1, t / clipDuration);
           setProgress(p);
 
-          const zoom = 1 + (MAX_ZOOM - 1) * p;
+          const zoom = sourceVideo ? 1 : 1 + (MAX_ZOOM - 1) * p;
           const revealT =
             (t - REVEAL_START) / (REVEAL_END - REVEAL_START);
           const reveal = easeOutCubic(revealT);
@@ -224,14 +305,14 @@ export function VideoGenerator({
 
           // fade from/to black at the edges
           const fadeIn = Math.max(0, 1 - t / FADE_S);
-          const fadeOut = Math.max(0, 1 - (DURATION_S - t) / FADE_S);
+          const fadeOut = Math.max(0, 1 - (clipDuration - t) / FADE_S);
           const fade = Math.max(fadeIn, fadeOut);
           if (fade > 0) {
             c.fillStyle = `rgba(0,0,0,${fade})`;
             c.fillRect(0, 0, W, activeFormat.height);
           }
 
-          if (t < DURATION_S) {
+          if (t < clipDuration) {
             requestAnimationFrame(frame);
           } else {
             resolve();
@@ -243,6 +324,10 @@ export function VideoGenerator({
       recorder.stop();
       await stopped;
       stream.getTracks().forEach((tr) => tr.stop());
+      if (sourceVideo) {
+        sourceVideo.pause();
+        sourceVideo.currentTime = 0;
+      }
 
       const blob = new Blob(chunks, { type: mimeType.split(";")[0] });
       setVideoUrl(URL.createObjectURL(blob));
@@ -263,7 +348,7 @@ export function VideoGenerator({
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
-      <div className="flex flex-col items-center rounded-2xl bg-white p-6 shadow-card ring-1 ring-black/5">
+      <div className="relative flex flex-col items-center rounded-2xl bg-white p-6 shadow-card ring-1 ring-black/5">
         <canvas
           ref={canvasRef}
           width={W}
@@ -272,6 +357,16 @@ export function VideoGenerator({
             format === "story" ? "w-full max-w-[260px]" : "w-full max-w-[420px]"
           }`}
         />
+        {videoObjectUrl && (
+          <video
+            ref={sourceVideoRef}
+            src={videoObjectUrl}
+            playsInline
+            muted={false}
+            className="absolute h-px w-px opacity-0"
+            style={{ pointerEvents: "none" }}
+          />
+        )}
 
         {!supported && (
           <p className="mt-3 text-xs font-medium text-red-600">
@@ -303,7 +398,11 @@ export function VideoGenerator({
             disabled={recording || !supported}
             className="rounded-full bg-nd-green-dark px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-nd-green disabled:opacity-60"
           >
-            {recording ? "Gravando…" : `Gerar vídeo (${DURATION_S}s)`}
+            {recording
+              ? "Gravando…"
+              : photoChoice === "video" && videoObjectUrl
+              ? "Gerar vídeo"
+              : `Gerar vídeo (${DURATION_S}s)`}
           </button>
           {videoUrl && !recording && (
             <button
@@ -380,10 +479,13 @@ export function VideoGenerator({
             setAiPhoto={setAiPhoto}
             canvasHeight={activeFormat.height}
             disabled={recording}
+            allowVideo
+            videoFileName={videoFile?.name ?? null}
+            onVideoSelected={setVideoFile}
           />
         )}
 
-        {template === "campanha" ? (
+        {template === "campanha" || template === "campanha-direita" ? (
           <>
             <Field label="Linha pequena (acima do título)" value={kicker} onChange={setKicker} disabled={recording} />
             <Field label="Título" value={title} onChange={setTitle} disabled={recording} />
@@ -422,9 +524,9 @@ export function VideoGenerator({
         )}
 
         <p className="text-xs leading-relaxed text-nd-graphite/50">
-          O vídeo é gravado ao vivo no seu navegador (leva {DURATION_S}s pra
-          gerar) e sai em .webm — funciona bem no Instagram e WhatsApp. Nada é
-          enviado nem salvo em servidor.
+          {photoChoice === "video" && videoObjectUrl
+            ? `O vídeo enviado é usado como base (até ${MAX_VIDEO_DURATION_S}s, com o áudio original) e sai em .webm — funciona bem no Instagram e WhatsApp. Nada é enviado nem salvo em servidor.`
+            : `O vídeo é gravado ao vivo no seu navegador (leva ${DURATION_S}s pra gerar) e sai em .webm — funciona bem no Instagram e WhatsApp. Nada é enviado nem salvo em servidor.`}
         </p>
       </div>
     </div>
