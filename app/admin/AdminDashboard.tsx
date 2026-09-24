@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { SiteContacts } from "@/lib/content-store";
 import { SITE_IMAGE_FIELDS, SiteImageKey } from "@/lib/site-image-fields";
 import { PostGenerator } from "./PostGenerator";
+import { VideoGenerator } from "./VideoGenerator";
 
 const EMPTY: SiteContacts = {
   whatsappNumber: "",
@@ -21,6 +22,7 @@ const TABS = [
   { key: "contatos", label: "Contatos" },
   { key: "imagens", label: "Imagens" },
   { key: "posts", label: "Posts" },
+  { key: "video", label: "Vídeo" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -211,6 +213,12 @@ export default function AdminDashboard({
       {tab === "posts" && (
         <div className="mt-8">
           <PostGenerator siteImages={siteImages} />
+        </div>
+      )}
+
+      {tab === "video" && (
+        <div className="mt-8">
+          <VideoGenerator siteImages={siteImages} />
         </div>
       )}
     </div>
