@@ -487,7 +487,8 @@ export function VideoGenerator({
 
         {template === "campanha" ||
         template === "campanha-direita" ||
-        template === "moderno" ? (
+        template === "moderno" ||
+        template === "neblina" ? (
           <>
             <Field label="Linha pequena (acima do título)" value={kicker} onChange={setKicker} disabled={recording} />
             <Field label="Título" value={title} onChange={setTitle} disabled={recording} />
