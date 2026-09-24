@@ -4,7 +4,7 @@ import { getSiteContent } from "@/lib/content-store";
 
 export async function ServiceArea() {
   const { contacts } = await getSiteContent();
-  const area = contacts.areaServed || "[A DEFINIR — configure em /admin]";
+  const area = contacts.areaServed || "Fale com a gente para confirmar a cobertura";
 
   return (
     <section id="atuacao" className="bg-nd-mist py-20 sm:py-28">
@@ -28,7 +28,7 @@ export async function ServiceArea() {
             <div className="text-center text-nd-graphite/50">
               <MapIcon />
               <p className="mt-3 text-sm">
-                Mapa da área de atuação — [A DEFINIR]
+                Mapa da área de atuação em breve
               </p>
             </div>
           </div>
