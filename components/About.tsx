@@ -20,10 +20,9 @@ export function About({ imageUrl }: { imageUrl: string }) {
                 controle de dose e acompanhamento técnico da operação.
               </p>
               <p>
-                Nosso compromisso é com o resultado no campo: uniformidade na
-                aplicação e uma equipe presente do primeiro contato até o
-                retorno sobre o serviço realizado — sem enrolação, sem
-                discurso de tecnologia por tecnologia.
+                O compromisso é com o resultado: aplicação uniforme e uma
+                equipe presente do primeiro contato ao retorno sobre o
+                serviço — sem discurso vazio de tecnologia.
               </p>
             </div>
           </div>
