@@ -7,7 +7,8 @@ export type TemplateKey =
   | "diferencial"
   | "contato"
   | "campanha"
-  | "campanha-direita";
+  | "campanha-direita"
+  | "moderno";
 export type FormatKey = "quadrado" | "story";
 
 export const FORMATS: { key: FormatKey; label: string; height: number }[] = [
@@ -22,6 +23,7 @@ export const TEMPLATES: {
 }[] = [
   { key: "campanha", label: "Campanha", needsPhoto: true },
   { key: "campanha-direita", label: "Campanha (painel à direita)", needsPhoto: true },
+  { key: "moderno", label: "Moderno (com rodapé)", needsPhoto: true },
   { key: "servico", label: "Post de serviço", needsPhoto: true },
   { key: "frase", label: "Frase", needsPhoto: false },
   { key: "promocao", label: "Promoção", needsPhoto: true },
@@ -544,6 +546,153 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
         ctx.fillText(line, 60, sy);
         sy += 40;
       });
+    }
+
+    ctx.restore();
+    return;
+  }
+
+  if (template === "moderno") {
+    if (photo) {
+      drawCover(ctx, photo, 0, 0, W, H, zoom);
+    } else {
+      ctx.fillStyle = COLORS.greenDark;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // gradiente suave no topo, só pra dar legibilidade ao título
+    const topOverlay = ctx.createLinearGradient(0, 0, 0, H * 0.55);
+    topOverlay.addColorStop(0, "rgba(11,61,46,0.88)");
+    topOverlay.addColorStop(1, "rgba(11,61,46,0)");
+    ctx.fillStyle = topOverlay;
+    ctx.fillRect(0, 0, W, H * 0.55);
+
+    // formas decorativas: círculos concêntricos no canto e um ponto de destaque
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.strokeStyle = COLORS.lime;
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.arc(W - 30, 30, 280, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(W - 30, 30, 170, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.fillStyle = COLORS.amber;
+    ctx.beginPath();
+    ctx.arc(W - 130, H * 0.62, 16, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(W - 90, H * 0.66, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = reveal;
+    ctx.translate(0, (1 - reveal) * 26);
+
+    ctx.textAlign = "left";
+    drawLogoTopLeft(ctx, logo, 60);
+
+    const leftMargin = 60;
+    const maxTextW = W - leftMargin * 2 - 40;
+    let cursorY = H * 0.36;
+
+    if (kicker) {
+      ctx.font = "700 26px Montserrat, sans-serif";
+      const label = kicker.toUpperCase();
+      const textW = ctx.measureText(label).width;
+      const padX = 22;
+      const boxH = 48;
+      const boxY = cursorY - boxH + 14;
+      ctx.fillStyle = COLORS.lime;
+      roundRect(ctx, leftMargin, boxY, textW + padX * 2, boxH, boxH / 2);
+      ctx.fill();
+      ctx.fillStyle = COLORS.greenDark;
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, leftMargin + padX, boxY + boxH / 2 + 1);
+      ctx.textBaseline = "alphabetic";
+      cursorY += 50;
+    }
+
+    if (title) {
+      ctx.font = "800 74px Montserrat, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      wrapText(ctx, title.toUpperCase(), maxTextW).forEach((line) => {
+        ctx.fillText(line, leftMargin, cursorY);
+        cursorY += 74;
+      });
+    }
+
+    if (highlight) {
+      ctx.font = "800 86px Montserrat, sans-serif";
+      ctx.fillStyle = COLORS.lime;
+      wrapText(ctx, highlight.toUpperCase(), maxTextW).forEach((line) => {
+        ctx.fillText(line, leftMargin, cursorY);
+        cursorY += 80;
+      });
+    }
+
+    // barra de rodapé sólida, com localização, selos e assinatura
+    const footerH = 230;
+    ctx.fillStyle = "rgba(11,61,46,0.94)";
+    ctx.fillRect(0, H - footerH, W, footerH);
+    ctx.fillStyle = COLORS.lime;
+    ctx.fillRect(0, H - footerH, W, 6);
+
+    const activeBadges = badges.filter(Boolean).slice(0, 3);
+    if (activeBadges.length) {
+      const icons: BadgeIcon[] = ["precisao", "produtividade", "seguranca"];
+      const badgeY = H - footerH + 62;
+      const colW = maxTextW / activeBadges.length;
+      const badgeR = 26;
+      activeBadges.forEach((label, i) => {
+        const colX = leftMargin + i * colW;
+        drawBadgeIcon(ctx, icons[i % icons.length], colX + badgeR, badgeY, badgeR);
+        ctx.font = "700 20px Montserrat, sans-serif";
+        ctx.fillStyle = "#ffffff";
+        wrapText(ctx, label, colW - 16)
+          .slice(0, 2)
+          .forEach((line, li) => {
+            ctx.fillText(line, colX + badgeR * 2 + 14, badgeY - 4 + li * 24);
+          });
+      });
+    }
+
+    const footerBottomY = H - footerH + (activeBadges.length ? 150 : 90);
+
+    if (location) {
+      drawPin(ctx, leftMargin + 12, footerBottomY - 8, 28);
+      ctx.font = "600 26px Montserrat, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(location, leftMargin + 36, footerBottomY);
+    }
+
+    if (signature) {
+      ctx.textAlign = "right";
+      ctx.font = "700 44px Caveat, cursive";
+      const lines = wrapText(ctx, signature, W - leftMargin * 2);
+      const lineH = 42;
+      const padY = 16;
+      const boxH = lines.length * lineH + padY * 2 - 10;
+      const boxY = H - footerH - boxH - 24;
+      let widest = 0;
+      lines.forEach((line) => {
+        widest = Math.max(widest, ctx.measureText(line).width);
+      });
+      ctx.fillStyle = "rgba(11,61,46,0.6)";
+      roundRect(ctx, W - leftMargin - widest - 32, boxY, widest + 32, boxH, 18);
+      ctx.fill();
+      ctx.fillStyle = COLORS.lime;
+      let sy = boxY + padY + 32;
+      lines.forEach((line) => {
+        ctx.fillText(line, W - leftMargin - 16, sy);
+        sy += lineH;
+      });
+      ctx.textAlign = "left";
     }
 
     ctx.restore();
