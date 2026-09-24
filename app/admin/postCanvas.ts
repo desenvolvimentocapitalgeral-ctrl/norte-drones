@@ -41,13 +41,32 @@ export const COLORS = {
   graphite: "#253339",
 };
 
+/**
+ * Se `src` vier de outro domínio (ex.: Vercel Blob), passa pelo nosso
+ * proxy same-origin antes de carregar — senão o canvas fica "tainted" e
+ * toDataURL/toBlob/captureStream falham (silenciosamente) em qualquer
+ * navegador, quebrando salvar imagem e gravar vídeo. data:/blob: URLs
+ * (foto enviada, IA, vídeo enviado) já são sempre same-origin/seguras.
+ */
+export function toCanvasSafeSrc(src: string): string {
+  if (typeof window === "undefined") return src;
+  if (src.startsWith("data:") || src.startsWith("blob:")) return src;
+  try {
+    const resolved = new URL(src, window.location.origin);
+    if (resolved.origin === window.location.origin) return src;
+    return `/api/admin/proxy-image?src=${encodeURIComponent(resolved.toString())}`;
+  } catch {
+    return src;
+  }
+}
+
 export function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
     img.onerror = reject;
-    img.src = src;
+    img.src = toCanvasSafeSrc(src);
   });
 }
 

@@ -84,10 +84,11 @@ export function PostGenerator({
           signature,
         });
         if (!cancelled) setPreviewUrl(canvas.toDataURL("image/png"));
-      } catch {
+      } catch (err) {
         if (!cancelled) {
+          const detail = err instanceof Error ? ` (${err.name}: ${err.message})` : "";
           setError(
-            "Não foi possível carregar alguma imagem para o post. Tente enviar a foto pelo seu dispositivo."
+            `Não foi possível carregar alguma imagem para o post. Tente enviar a foto pelo seu dispositivo.${detail}`
           );
         }
       } finally {
