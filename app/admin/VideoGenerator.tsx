@@ -12,6 +12,7 @@ import {
   type TemplateKey,
   type FormatKey,
 } from "./postCanvas";
+import { PhotoPicker, resolvePhotoSrc, type PhotoSource } from "./PhotoPicker";
 
 const DURATION_S = 5.5;
 const REVEAL_START = 0.4;
@@ -46,10 +47,9 @@ export function VideoGenerator({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [template, setTemplate] = useState<TemplateKey>("servico");
   const [format, setFormat] = useState<FormatKey>("quadrado");
-  const [photoChoice, setPhotoChoice] = useState<"hero" | "about" | "upload">(
-    "about"
-  );
+  const [photoChoice, setPhotoChoice] = useState<PhotoSource>("about");
   const [uploadedPhoto, setUploadedPhoto] = useState<string | null>(null);
+  const [aiPhoto, setAiPhoto] = useState<string | null>(null);
   const [title, setTitle] = useState("Aplicação agrícola de precisão");
   const [subtitle, setSubtitle] = useState("Fale com a Norte Drones");
   const [price, setPrice] = useState("Peça seu orçamento");
@@ -86,12 +86,7 @@ export function VideoGenerator({
         const logo = await loadImage(siteImages.logoDark);
         let photo: HTMLImageElement | null = null;
         if (activeTemplate.needsPhoto) {
-          const src =
-            photoChoice === "upload"
-              ? uploadedPhoto
-              : photoChoice === "about"
-              ? siteImages.about
-              : siteImages.hero;
+          const src = resolvePhotoSrc(photoChoice, siteImages, uploadedPhoto, aiPhoto);
           if (src) photo = await loadImage(src);
         }
         if (cancelled) return;
@@ -125,24 +120,13 @@ export function VideoGenerator({
     activeFormat.height,
     photoChoice,
     uploadedPhoto,
+    aiPhoto,
     title,
     subtitle,
     price,
     siteImages,
     activeTemplate.needsPhoto,
   ]);
-
-  function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setUploadedPhoto(reader.result as string);
-      setPhotoChoice("upload");
-    };
-    reader.readAsDataURL(file);
-  }
 
   async function handleRecord() {
     const canvas = canvasRef.current;
@@ -163,12 +147,7 @@ export function VideoGenerator({
       const logo = await loadImage(siteImages.logoDark);
       let photo: HTMLImageElement | null = null;
       if (activeTemplate.needsPhoto) {
-        const src =
-          photoChoice === "upload"
-            ? uploadedPhoto
-            : photoChoice === "about"
-            ? siteImages.about
-            : siteImages.hero;
+        const src = resolvePhotoSrc(photoChoice, siteImages, uploadedPhoto, aiPhoto);
         if (src) photo = await loadImage(src);
       }
 
@@ -362,53 +341,16 @@ export function VideoGenerator({
         </div>
 
         {activeTemplate.needsPhoto && (
-          <div>
-            <p className="mb-2 text-sm font-medium text-nd-graphite">Foto</p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                disabled={recording}
-                onClick={() => setPhotoChoice("about")}
-                className={`rounded-full px-4 py-2 text-sm font-medium transition disabled:opacity-50 ${
-                  photoChoice === "about"
-                    ? "bg-nd-green-dark text-white"
-                    : "bg-black/5 text-nd-graphite hover:bg-black/10"
-                }`}
-              >
-                Imagem da "Sobre"
-              </button>
-              <button
-                type="button"
-                disabled={recording}
-                onClick={() => setPhotoChoice("hero")}
-                className={`rounded-full px-4 py-2 text-sm font-medium transition disabled:opacity-50 ${
-                  photoChoice === "hero"
-                    ? "bg-nd-green-dark text-white"
-                    : "bg-black/5 text-nd-graphite hover:bg-black/10"
-                }`}
-              >
-                Imagem do topo
-              </button>
-              <label
-                className={`cursor-pointer rounded-full px-4 py-2 text-sm font-medium transition ${
-                  recording ? "pointer-events-none opacity-50" : ""
-                } ${
-                  photoChoice === "upload"
-                    ? "bg-nd-green-dark text-white"
-                    : "bg-black/5 text-nd-graphite hover:bg-black/10"
-                }`}
-              >
-                Enviar do dispositivo
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handleUpload}
-                  disabled={recording}
-                  className="hidden"
-                />
-              </label>
-            </div>
-          </div>
+          <PhotoPicker
+            source={photoChoice}
+            setSource={setPhotoChoice}
+            uploadedPhoto={uploadedPhoto}
+            setUploadedPhoto={setUploadedPhoto}
+            aiPhoto={aiPhoto}
+            setAiPhoto={setAiPhoto}
+            canvasHeight={activeFormat.height}
+            disabled={recording}
+          />
         )}
 
         <Field
