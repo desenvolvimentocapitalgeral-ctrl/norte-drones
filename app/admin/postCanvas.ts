@@ -138,7 +138,7 @@ function drawLogoTopLeft(
   margin: number
 ) {
   if (!logo) return;
-  const w = 460;
+  const w = 640;
   const h = (logo.height / logo.width) * w;
   ctx.drawImage(logo, margin, margin, w, h);
 }
@@ -149,7 +149,7 @@ function drawLogoTopRight(
   margin: number
 ) {
   if (!logo) return;
-  const w = 460;
+  const w = 640;
   const h = (logo.height / logo.width) * w;
   ctx.drawImage(logo, W - margin - w, margin, w, h);
 }
@@ -322,7 +322,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     const leftMargin = 60;
     const maxTextW = splitX - leftMargin - 40;
     const footerH = location ? 60 : 0;
-    let cursorY = H * 0.18;
+    let cursorY = H * 0.24;
 
     if (kicker) {
       ctx.font = "700 30px Montserrat, sans-serif";
@@ -451,7 +451,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     const textX = W - rightMargin;
     const maxTextW = W - panelStart - rightMargin - 40;
     const footerH = location ? 60 : 0;
-    let cursorY = H * 0.18;
+    let cursorY = H * 0.24;
 
     if (kicker) {
       ctx.font = "700 30px Montserrat, sans-serif";
@@ -588,7 +588,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     }
 
     if (logo) {
-      const w = 400;
+      const w = 560;
       const h = (logo.height / logo.width) * w;
       ctx.drawImage(logo, (W - w) / 2, H - h - 80, w, h);
     }
@@ -631,7 +631,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.textAlign = "center";
 
     if (logo) {
-      const w = 460;
+      const w = 640;
       const h = (logo.height / logo.width) * w;
       ctx.drawImage(logo, (W - w) / 2, H * 0.22, w, h);
     }
