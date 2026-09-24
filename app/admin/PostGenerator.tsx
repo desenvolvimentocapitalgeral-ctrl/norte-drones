@@ -12,6 +12,7 @@ import {
   type TemplateKey,
   type FormatKey,
 } from "./postCanvas";
+import { PhotoPicker, resolvePhotoSrc, type PhotoSource } from "./PhotoPicker";
 
 export function PostGenerator({
   siteImages,
@@ -21,10 +22,9 @@ export function PostGenerator({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [template, setTemplate] = useState<TemplateKey>("servico");
   const [format, setFormat] = useState<FormatKey>("quadrado");
-  const [photoChoice, setPhotoChoice] = useState<"hero" | "about" | "upload">(
-    "about"
-  );
+  const [photoChoice, setPhotoChoice] = useState<PhotoSource>("about");
   const [uploadedPhoto, setUploadedPhoto] = useState<string | null>(null);
+  const [aiPhoto, setAiPhoto] = useState<string | null>(null);
   const [title, setTitle] = useState("Aplicação agrícola de precisão");
   const [subtitle, setSubtitle] = useState("Fale com a Norte Drones");
   const [price, setPrice] = useState("Peça seu orçamento");
@@ -51,12 +51,7 @@ export function PostGenerator({
 
         let photo: HTMLImageElement | null = null;
         if (activeTemplate.needsPhoto) {
-          const src =
-            photoChoice === "upload"
-              ? uploadedPhoto
-              : photoChoice === "about"
-              ? siteImages.about
-              : siteImages.hero;
+          const src = resolvePhotoSrc(photoChoice, siteImages, uploadedPhoto, aiPhoto);
           if (src) photo = await loadImage(src);
         }
 
@@ -90,24 +85,13 @@ export function PostGenerator({
     activeFormat.height,
     photoChoice,
     uploadedPhoto,
+    aiPhoto,
     title,
     subtitle,
     price,
     siteImages,
     activeTemplate.needsPhoto,
   ]);
-
-  function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setUploadedPhoto(reader.result as string);
-      setPhotoChoice("upload");
-    };
-    reader.readAsDataURL(file);
-  }
 
   function handleDownload() {
     const canvas = canvasRef.current;
@@ -191,48 +175,15 @@ export function PostGenerator({
         </div>
 
         {activeTemplate.needsPhoto && (
-          <div>
-            <p className="mb-2 text-sm font-medium text-nd-graphite">Foto</p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setPhotoChoice("about")}
-                className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                  photoChoice === "about"
-                    ? "bg-nd-green-dark text-white"
-                    : "bg-black/5 text-nd-graphite hover:bg-black/10"
-                }`}
-              >
-                Imagem da "Sobre"
-              </button>
-              <button
-                type="button"
-                onClick={() => setPhotoChoice("hero")}
-                className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                  photoChoice === "hero"
-                    ? "bg-nd-green-dark text-white"
-                    : "bg-black/5 text-nd-graphite hover:bg-black/10"
-                }`}
-              >
-                Imagem do topo
-              </button>
-              <label
-                className={`cursor-pointer rounded-full px-4 py-2 text-sm font-medium transition ${
-                  photoChoice === "upload"
-                    ? "bg-nd-green-dark text-white"
-                    : "bg-black/5 text-nd-graphite hover:bg-black/10"
-                }`}
-              >
-                Enviar do dispositivo
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handleUpload}
-                  className="hidden"
-                />
-              </label>
-            </div>
-          </div>
+          <PhotoPicker
+            source={photoChoice}
+            setSource={setPhotoChoice}
+            uploadedPhoto={uploadedPhoto}
+            setUploadedPhoto={setUploadedPhoto}
+            aiPhoto={aiPhoto}
+            setAiPhoto={setAiPhoto}
+            canvasHeight={activeFormat.height}
+          />
         )}
 
         <Field
