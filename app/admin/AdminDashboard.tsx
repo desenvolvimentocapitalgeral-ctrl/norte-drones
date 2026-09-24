@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { SiteContacts } from "@/lib/content-store";
-import { SITE_IMAGE_FIELDS } from "@/lib/site-image-fields";
+import { SITE_IMAGE_FIELDS, SiteImageKey } from "@/lib/site-image-fields";
+import { PostGenerator } from "./PostGenerator";
 
 const EMPTY: SiteContacts = {
   whatsappNumber: "",
@@ -16,8 +17,21 @@ const EMPTY: SiteContacts = {
   areaServed: "",
 };
 
-export default function AdminDashboard() {
+const TABS = [
+  { key: "contatos", label: "Contatos" },
+  { key: "imagens", label: "Imagens" },
+  { key: "posts", label: "Posts" },
+] as const;
+
+type TabKey = (typeof TABS)[number]["key"];
+
+export default function AdminDashboard({
+  siteImages,
+}: {
+  siteImages: Record<SiteImageKey, string>;
+}) {
   const router = useRouter();
+  const [tab, setTab] = useState<TabKey>("contatos");
   const [form, setForm] = useState<SiteContacts>(EMPTY);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -78,8 +92,7 @@ export default function AdminDashboard() {
             Painel administrativo
           </h1>
           <p className="mt-1 text-sm text-nd-graphite/70">
-            Atualize os contatos exibidos no site (WhatsApp, telefone, e-mail
-            e Instagram).
+            Atualize os contatos, as imagens e gere posts para redes sociais.
           </p>
         </div>
         <button
@@ -90,7 +103,24 @@ export default function AdminDashboard() {
         </button>
       </div>
 
+      <div className="mt-6 flex gap-1 rounded-full bg-black/5 p-1 text-sm font-medium">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => setTab(t.key)}
+            className={`flex-1 rounded-full px-4 py-2 transition ${
+              tab === t.key
+                ? "bg-white text-nd-green-dark shadow-sm"
+                : "text-nd-graphite/60 hover:text-nd-graphite"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
+      {tab === "contatos" && (
       <form onSubmit={handleSubmit} className="mt-8 space-y-6 rounded-2xl bg-white p-8 shadow-card ring-1 ring-black/5">
         <Field
           label="Número de WhatsApp (com DDI e DDD, apenas números)"
@@ -161,8 +191,10 @@ export default function AdminDashboard() {
           {saving ? "Salvando..." : "Salvar alterações"}
         </button>
       </form>
+      )}
 
-      <div className="mt-10 rounded-2xl bg-white p-8 shadow-card ring-1 ring-black/5">
+      {tab === "imagens" && (
+      <div className="mt-8 rounded-2xl bg-white p-8 shadow-card ring-1 ring-black/5">
         <h2 className="text-lg font-bold text-nd-green-dark">Imagens do site</h2>
         <p className="mt-1 text-sm text-nd-graphite/70">
           Envie uma nova imagem para substituir a atual. A troca aparece no
@@ -174,6 +206,13 @@ export default function AdminDashboard() {
           ))}
         </div>
       </div>
+      )}
+
+      {tab === "posts" && (
+        <div className="mt-8">
+          <PostGenerator siteImages={siteImages} />
+        </div>
+      )}
     </div>
   );
 }
