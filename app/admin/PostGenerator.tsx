@@ -13,7 +13,7 @@ import {
   type FormatKey,
 } from "./postCanvas";
 import { PhotoPicker, resolvePhotoSrc, type PhotoSource } from "./PhotoPicker";
-import { shareOrDownloadFile } from "./shareFile";
+import { shareOrDownloadFile, dataUrlToBlob } from "./shareFile";
 
 export function PostGenerator({
   siteImages,
@@ -41,6 +41,7 @@ export function PostGenerator({
   const [signature, setSignature] = useState("Juntos por mais resultado!");
   const [rendering, setRendering] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const activeTemplate = TEMPLATES.find((t) => t.key === template)!;
   const activeFormat = FORMATS.find((f) => f.key === format)!;
@@ -82,6 +83,7 @@ export function PostGenerator({
           location,
           signature,
         });
+        if (!cancelled) setPreviewUrl(canvas.toDataURL("image/png"));
       } catch {
         if (!cancelled) {
           setError(
@@ -119,25 +121,29 @@ export function PostGenerator({
   ]);
 
   function handleDownload() {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      shareOrDownloadFile(blob, `norte-drones-${template}-${format}.png`);
-    }, "image/png");
+    if (!previewUrl) return;
+    // toDataURL é síncrono (ao contrário de toBlob), então o clique do
+    // usuário ainda "conta" quando chega no navigator.share — em alguns
+    // celulares o compartilhar/baixar falha silenciosamente se isso vier
+    // de um callback assíncrono.
+    const blob = dataUrlToBlob(previewUrl);
+    shareOrDownloadFile(blob, `norte-drones-${template}-${format}.png`);
   }
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
       <div className="flex flex-col items-center rounded-2xl bg-white p-6 shadow-card ring-1 ring-black/5">
-        <canvas
-          ref={canvasRef}
-          width={W}
-          height={activeFormat.height}
-          className={`h-auto rounded-xl ring-1 ring-black/10 ${
-            format === "story" ? "w-full max-w-[260px]" : "w-full max-w-[420px]"
-          }`}
-        />
+        <canvas ref={canvasRef} width={W} height={activeFormat.height} className="hidden" />
+        {previewUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={previewUrl}
+            alt="Prévia do post"
+            className={`h-auto rounded-xl ring-1 ring-black/10 ${
+              format === "story" ? "w-full max-w-[260px]" : "w-full max-w-[420px]"
+            }`}
+          />
+        )}
         {rendering && (
           <p className="mt-3 text-xs text-nd-graphite/50">Gerando prévia…</p>
         )}
@@ -146,11 +152,14 @@ export function PostGenerator({
         )}
         <button
           onClick={handleDownload}
-          disabled={rendering}
+          disabled={rendering || !previewUrl}
           className="mt-6 rounded-full bg-nd-green-dark px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-nd-green disabled:opacity-60"
         >
           Salvar imagem ({W}×{activeFormat.height})
         </button>
+        <p className="mt-2 text-center text-xs text-nd-graphite/50">
+          No celular, se o botão não funcionar: toque e segure a imagem acima e escolha &quot;Salvar imagem&quot;.
+        </p>
       </div>
 
       <div className="space-y-6 rounded-2xl bg-white p-6 shadow-card ring-1 ring-black/5">
