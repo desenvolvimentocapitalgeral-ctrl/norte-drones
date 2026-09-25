@@ -6,6 +6,7 @@ import {
   W,
   FORMATS,
   TEMPLATES,
+  RICH_FIELD_TEMPLATES,
   loadImage,
   loadFonts,
   draw,
@@ -216,10 +217,7 @@ export function PostGenerator({
           />
         )}
 
-        {template === "campanha" ||
-        template === "campanha-direita" ||
-        template === "moderno" ||
-        template === "neblina" ? (
+        {RICH_FIELD_TEMPLATES.includes(template) ? (
           <>
             <Field label="Linha pequena (acima do título)" value={kicker} onChange={setKicker} />
             <Field label="Título" value={title} onChange={setTitle} />

@@ -9,7 +9,19 @@ export type TemplateKey =
   | "campanha"
   | "campanha-direita"
   | "moderno"
-  | "neblina";
+  | "neblina"
+  | "circulo"
+  | "diagonal"
+  | "moldura"
+  | "cartao"
+  | "ondas"
+  | "etiqueta"
+  | "hexagonos"
+  | "numerado"
+  | "estatistica"
+  | "citacao"
+  | "linhas"
+  | "impacto";
 export type FormatKey = "quadrado" | "story";
 
 export const FORMATS: { key: FormatKey; label: string; height: number }[] = [
@@ -26,11 +38,45 @@ export const TEMPLATES: {
   { key: "campanha-direita", label: "Campanha (painel à direita)", needsPhoto: true },
   { key: "moderno", label: "Moderno (com rodapé)", needsPhoto: true },
   { key: "neblina", label: "Névoa (foto bem visível)", needsPhoto: true },
+  { key: "circulo", label: "Círculo", needsPhoto: true },
+  { key: "diagonal", label: "Diagonal", needsPhoto: true },
+  { key: "moldura", label: "Moldura", needsPhoto: true },
+  { key: "cartao", label: "Cartão", needsPhoto: true },
+  { key: "ondas", label: "Ondas", needsPhoto: true },
+  { key: "etiqueta", label: "Etiqueta", needsPhoto: true },
+  { key: "hexagonos", label: "Hexágonos", needsPhoto: true },
+  { key: "numerado", label: "Numerado (etapas)", needsPhoto: false },
+  { key: "estatistica", label: "Estatística", needsPhoto: false },
+  { key: "citacao", label: "Citação", needsPhoto: false },
+  { key: "linhas", label: "Linhas (claro)", needsPhoto: false },
+  { key: "impacto", label: "Impacto", needsPhoto: false },
   { key: "servico", label: "Post de serviço", needsPhoto: true },
   { key: "frase", label: "Frase", needsPhoto: false },
   { key: "promocao", label: "Promoção", needsPhoto: true },
   { key: "diferencial", label: "Diferencial", needsPhoto: false },
   { key: "contato", label: "Contato", needsPhoto: false },
+];
+
+/** Modelos que usam o conjunto de campos "estilo Campanha" (linha pequena,
+ * título, destaque, texto de apoio, selos, localização, assinatura) em vez
+ * dos campos simples (título/subtítulo/preço). */
+export const RICH_FIELD_TEMPLATES: TemplateKey[] = [
+  "campanha",
+  "campanha-direita",
+  "moderno",
+  "neblina",
+  "circulo",
+  "diagonal",
+  "moldura",
+  "cartao",
+  "ondas",
+  "etiqueta",
+  "hexagonos",
+  "numerado",
+  "estatistica",
+  "citacao",
+  "linhas",
+  "impacto",
 ];
 
 export const COLORS = {
@@ -272,6 +318,133 @@ function drawPin(
   ctx.arc(x, y, size * 0.12, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
+}
+
+function drawHexOutline(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number
+) {
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI / 3) * i - Math.PI / 2;
+    const px = cx + r * Math.cos(a);
+    const py = cy + r * Math.sin(a);
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.stroke();
+}
+
+/** Empilha kicker/título/destaque/corpo alinhados à esquerda, um embaixo do
+ * outro, reaproveitado por vários modelos. Retorna o Y final (útil pra
+ * posicionar selos/localização logo abaixo). */
+function drawTextStack(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  startY: number,
+  maxW: number,
+  opts: {
+    kicker?: string;
+    title?: string;
+    highlight?: string;
+    body?: string;
+    kickerColor?: string;
+    titleColor?: string;
+    highlightColor?: string;
+    bodyColor?: string;
+    titleSize?: number;
+    highlightSize?: number;
+    align?: "left" | "center";
+  }
+): number {
+  let cursorY = startY;
+  const {
+    kicker,
+    title,
+    highlight,
+    body,
+    kickerColor = "#ffffff",
+    titleColor = "#ffffff",
+    highlightColor = COLORS.lime,
+    bodyColor = "rgba(255,255,255,0.9)",
+    titleSize = 62,
+    highlightSize = 74,
+    align = "left",
+  } = opts;
+  ctx.textAlign = align;
+  const tx = align === "center" ? x + maxW / 2 : x;
+
+  if (kicker) {
+    ctx.font = "700 27px Montserrat, sans-serif";
+    ctx.fillStyle = kickerColor;
+    wrapText(ctx, kicker.toUpperCase(), maxW).forEach((line) => {
+      ctx.fillText(line, tx, cursorY);
+      cursorY += 36;
+    });
+    cursorY += 18;
+  }
+  if (title) {
+    ctx.font = `800 ${titleSize}px Montserrat, sans-serif`;
+    ctx.fillStyle = titleColor;
+    wrapText(ctx, title.toUpperCase(), maxW).forEach((line) => {
+      ctx.fillText(line, tx, cursorY);
+      cursorY += titleSize * 0.96;
+    });
+  }
+  if (highlight) {
+    ctx.font = `800 ${highlightSize}px Montserrat, sans-serif`;
+    ctx.fillStyle = highlightColor;
+    wrapText(ctx, highlight.toUpperCase(), maxW).forEach((line) => {
+      ctx.fillText(line, tx, cursorY);
+      cursorY += highlightSize * 0.92;
+    });
+  }
+  if (body) {
+    cursorY += 14;
+    ctx.font = "500 27px Montserrat, sans-serif";
+    ctx.fillStyle = bodyColor;
+    wrapText(ctx, body, maxW).forEach((line) => {
+      ctx.fillText(line, tx, cursorY);
+      cursorY += 37;
+    });
+  }
+  ctx.textAlign = "left";
+  return cursorY;
+}
+
+/** Linha de até 3 selos com ícone (usada por vários modelos). Retorna o Y
+ * de baixo da linha. */
+function drawBadgeRow(
+  ctx: CanvasRenderingContext2D,
+  badges: string[],
+  x: number,
+  y: number,
+  totalW: number,
+  opts?: { iconColor?: string; textColor?: string; radius?: number }
+): number {
+  const active = badges.filter(Boolean).slice(0, 3);
+  if (!active.length) return y;
+  const icons: BadgeIcon[] = ["precisao", "produtividade", "seguranca"];
+  const r = opts?.radius ?? 26;
+  const colW = totalW / active.length;
+  const prevAlign = ctx.textAlign;
+  ctx.textAlign = "left";
+  active.forEach((label, i) => {
+    const colX = x + i * colW;
+    drawBadgeIcon(ctx, icons[i % icons.length], colX + r, y, r);
+    ctx.font = "700 20px Montserrat, sans-serif";
+    ctx.fillStyle = opts?.textColor ?? "#ffffff";
+    wrapText(ctx, label, colW - 16)
+      .slice(0, 2)
+      .forEach((line, li) => {
+        ctx.fillText(line, colX + r * 2 + 14, y - 4 + li * 24);
+      });
+  });
+  ctx.textAlign = prevAlign;
+  return y + r * 2 + 30;
 }
 
 export type DrawOpts = {
@@ -848,6 +1021,843 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.fillText(signature, W - leftMargin, footerBottomY);
       ctx.shadowColor = "transparent";
       ctx.shadowBlur = 0;
+      ctx.textAlign = "left";
+    }
+
+    ctx.restore();
+    return;
+  }
+
+  if (template === "circulo") {
+    ctx.fillStyle = COLORS.greenDark;
+    ctx.fillRect(0, 0, W, H);
+
+    const cx = W / 2;
+    const cr = W * 0.21;
+    const cy = H * 0.05 + cr;
+
+    if (photo) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+      ctx.clip();
+      drawCover(ctx, photo, cx - cr, cy - cr, cr * 2, cr * 2, zoom);
+      ctx.restore();
+    }
+    ctx.save();
+    ctx.strokeStyle = COLORS.lime;
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.arc(cx, cy, cr + 14, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = COLORS.amber;
+    ctx.beginPath();
+    ctx.arc(cx + cr * 0.85, cy - cr * 0.85, 16, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = reveal;
+    ctx.translate(0, (1 - reveal) * 26);
+
+    drawLogoTopLeft(ctx, logo, 50);
+
+    const leftMargin = 70;
+    const maxW = W - leftMargin * 2;
+    let cursorY = drawTextStack(ctx, leftMargin, cy + cr + 70, maxW, {
+      kicker,
+      title,
+      highlight,
+      align: "center",
+      titleSize: 56,
+      highlightSize: 66,
+    });
+
+    cursorY = drawBadgeRow(ctx, badges, leftMargin, cursorY + 32, maxW, { radius: 22 });
+
+    let footY = cursorY + 26;
+    if (location) {
+      ctx.textAlign = "center";
+      ctx.font = "600 26px Montserrat, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(location, W / 2, footY);
+      ctx.textAlign = "left";
+      footY += 48;
+    }
+    if (signature) {
+      ctx.textAlign = "center";
+      ctx.font = "700 40px Caveat, cursive";
+      ctx.fillStyle = COLORS.lime;
+      ctx.fillText(signature, W / 2, footY);
+      ctx.textAlign = "left";
+    }
+
+    ctx.restore();
+    return;
+  }
+
+  if (template === "diagonal") {
+    if (photo) {
+      drawCover(ctx, photo, 0, 0, W, H, zoom);
+    } else {
+      ctx.fillStyle = COLORS.greenDark;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    const splitY = H * 0.58;
+    const grad = ctx.createLinearGradient(0, H, 0, splitY - 160);
+    grad.addColorStop(0, "rgba(11,61,46,0.97)");
+    grad.addColorStop(0.75, "rgba(11,61,46,0.92)");
+    grad.addColorStop(1, "rgba(11,61,46,0)");
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(0, H);
+    ctx.lineTo(0, splitY - 160);
+    ctx.lineTo(W, splitY + 60);
+    ctx.lineTo(W, H);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.save();
+    ctx.globalAlpha = reveal;
+    ctx.translate(0, (1 - reveal) * 26);
+
+    ctx.textAlign = "left";
+    drawLogoTopLeft(ctx, logo, 60);
+
+    const leftMargin = 60;
+    const maxW = W - leftMargin * 2 - 40;
+    let cursorY = drawTextStack(ctx, leftMargin, splitY + 60, maxW, { kicker, title, highlight });
+
+    const footerH = location ? 60 : 0;
+    cursorY = drawBadgeRow(ctx, badges, leftMargin, cursorY + 40, maxW);
+
+    if (location) {
+      const locY = cursorY + 34;
+      drawPin(ctx, leftMargin + 12, locY - 8, 26);
+      ctx.font = "600 26px Montserrat, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(location, leftMargin + 34, locY);
+    }
+    if (signature) {
+      ctx.textAlign = "right";
+      ctx.font = "700 42px Caveat, cursive";
+      ctx.fillStyle = COLORS.lime;
+      ctx.fillText(signature, W - 60, H - 50);
+      ctx.textAlign = "left";
+    }
+
+    ctx.restore();
+    return;
+  }
+
+  if (template === "moldura") {
+    ctx.fillStyle = COLORS.greenDark;
+    ctx.fillRect(0, 0, W, H);
+
+    const frameM = 46;
+    const photoH = H * 0.5;
+    if (photo) {
+      ctx.save();
+      roundRect(ctx, frameM, frameM, W - frameM * 2, photoH, 18);
+      ctx.clip();
+      drawCover(ctx, photo, frameM, frameM, W - frameM * 2, photoH, zoom);
+      ctx.restore();
+    }
+    ctx.save();
+    ctx.strokeStyle = COLORS.lime;
+    ctx.lineWidth = 6;
+    roundRect(ctx, frameM, frameM, W - frameM * 2, photoH, 18);
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = reveal;
+    ctx.translate(0, (1 - reveal) * 26);
+
+    drawLogoTopLeft(ctx, logo, frameM + 14);
+
+    const leftMargin = frameM + 20;
+    const maxW = W - leftMargin * 2;
+    let cursorY = drawTextStack(ctx, leftMargin, frameM + photoH + 70, maxW, {
+      kicker,
+      title,
+      highlight,
+      body,
+    });
+
+    const footerH = 90;
+    cursorY = drawBadgeRow(ctx, badges, leftMargin, cursorY + 36, maxW);
+
+    if (location) {
+      const locY = cursorY + 30;
+      drawPin(ctx, leftMargin + 12, locY - 8, 24);
+      ctx.font = "600 24px Montserrat, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(location, leftMargin + 32, locY);
+    }
+    if (signature) {
+      ctx.textAlign = "right";
+      ctx.font = "700 38px Caveat, cursive";
+      ctx.fillStyle = COLORS.lime;
+      ctx.fillText(signature, W - leftMargin, H - 46);
+      ctx.textAlign = "left";
+    }
+
+    ctx.restore();
+    return;
+  }
+
+  if (template === "cartao") {
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, COLORS.green);
+    grad.addColorStop(1, COLORS.greenDark);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    const cardM = 70;
+    const cardY = H * 0.19;
+    const cardH = H * 0.28;
+
+    if (photo) {
+      ctx.save();
+      ctx.shadowColor = "rgba(0,0,0,0.35)";
+      ctx.shadowBlur = 40;
+      ctx.shadowOffsetY = 18;
+      ctx.fillStyle = "#000";
+      roundRect(ctx, cardM, cardY, W - cardM * 2, cardH, 28);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.save();
+      roundRect(ctx, cardM, cardY, W - cardM * 2, cardH, 28);
+      ctx.clip();
+      drawCover(ctx, photo, cardM, cardY, W - cardM * 2, cardH, zoom);
+      ctx.restore();
+    }
+
+    ctx.save();
+    ctx.globalAlpha = reveal;
+    ctx.translate(0, (1 - reveal) * 26);
+
+    ctx.textAlign = "left";
+    drawLogoTopLeft(ctx, logo, 50);
+
+    if (kicker) {
+      ctx.font = "700 22px Montserrat, sans-serif";
+      const label = kicker.toUpperCase();
+      const tw = ctx.measureText(label).width;
+      const padX = 18;
+      const boxH = 40;
+      ctx.fillStyle = COLORS.amber;
+      roundRect(ctx, cardM + 18, cardY + 18, tw + padX * 2, boxH, boxH / 2);
+      ctx.fill();
+      ctx.fillStyle = COLORS.greenDark;
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, cardM + 18 + padX, cardY + 18 + boxH / 2 + 1);
+      ctx.textBaseline = "alphabetic";
+    }
+
+    const leftMargin = cardM;
+    const maxW = W - leftMargin * 2;
+    let cursorY = drawTextStack(ctx, leftMargin, cardY + cardH + 50, maxW, {
+      title,
+      highlight,
+      align: "center",
+      titleSize: 54,
+      highlightSize: 62,
+    });
+
+    cursorY = drawBadgeRow(ctx, badges, leftMargin, cursorY + 30, maxW, { radius: 22 });
+
+    // localização e assinatura empilhadas, uma embaixo da outra — nunca
+    // colidem, seja qual for o tamanho do conteúdo acima.
+    let footY = cursorY + 26;
+    if (location) {
+      ctx.textAlign = "center";
+      ctx.font = "600 24px Montserrat, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(location, W / 2, footY);
+      ctx.textAlign = "left";
+      footY += 46;
+    }
+    if (signature) {
+      ctx.textAlign = "center";
+      ctx.font = "700 36px Caveat, cursive";
+      ctx.fillStyle = COLORS.lime;
+      ctx.fillText(signature, W / 2, footY);
+      ctx.textAlign = "left";
+    }
+
+    ctx.restore();
+    return;
+  }
+
+  if (template === "ondas") {
+    if (photo) {
+      drawCover(ctx, photo, 0, 0, W, H, zoom);
+    } else {
+      ctx.fillStyle = COLORS.greenDark;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    const waveY = H * 0.43;
+    ctx.save();
+    ctx.fillStyle = COLORS.greenDark;
+    ctx.beginPath();
+    ctx.moveTo(0, waveY + 40);
+    ctx.bezierCurveTo(W * 0.25, waveY - 60, W * 0.75, waveY + 100, W, waveY - 20);
+    ctx.lineTo(W, H);
+    ctx.lineTo(0, H);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = reveal;
+    ctx.translate(0, (1 - reveal) * 26);
+
+    ctx.textAlign = "left";
+    drawLogoTopLeft(ctx, logo, 60);
+
+    const leftMargin = 60;
+    const maxW = W - leftMargin * 2 - 40;
+    let cursorY = drawTextStack(ctx, leftMargin, waveY + 80, maxW, {
+      kicker,
+      title,
+      highlight,
+      body,
+    });
+
+    cursorY = drawBadgeRow(ctx, badges, leftMargin, cursorY + 30, maxW, { radius: 22 });
+
+    if (location) {
+      const locY = cursorY + 30;
+      drawPin(ctx, leftMargin + 12, locY - 8, 24);
+      ctx.font = "600 24px Montserrat, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(location, leftMargin + 32, locY);
+    }
+    if (signature) {
+      ctx.textAlign = "right";
+      ctx.font = "700 38px Caveat, cursive";
+      ctx.fillStyle = COLORS.lime;
+      ctx.fillText(signature, W - leftMargin, H - 40);
+      ctx.textAlign = "left";
+    }
+
+    ctx.restore();
+    return;
+  }
+
+  if (template === "etiqueta") {
+    if (photo) {
+      drawCover(ctx, photo, 0, 0, W, H, zoom);
+    } else {
+      ctx.fillStyle = COLORS.greenDark;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    const bottomFog = ctx.createLinearGradient(0, H * 0.5, 0, H);
+    bottomFog.addColorStop(0, "rgba(11,61,46,0)");
+    bottomFog.addColorStop(1, "rgba(11,61,46,0.85)");
+    ctx.fillStyle = bottomFog;
+    ctx.fillRect(0, H * 0.5, W, H * 0.5);
+
+    ctx.save();
+    ctx.globalAlpha = reveal;
+    ctx.translate(0, (1 - reveal) * 26);
+
+    ctx.textAlign = "left";
+    drawLogoTopLeft(ctx, logo, 60);
+
+    if (highlight) {
+      const tagW = 300;
+      const tagH = 96;
+      const tx = W - tagW - 20;
+      const ty = 60;
+      ctx.save();
+      ctx.fillStyle = COLORS.amber;
+      ctx.beginPath();
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(tx + tagW, ty);
+      ctx.lineTo(tx + tagW, ty + tagH);
+      ctx.lineTo(tx + 24, ty + tagH);
+      ctx.lineTo(tx, ty + tagH - 24);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = COLORS.greenDark;
+      ctx.font = "800 30px Montserrat, sans-serif";
+      ctx.textAlign = "center";
+      wrapText(ctx, highlight.toUpperCase(), tagW - 40)
+        .slice(0, 2)
+        .forEach((line, i) => {
+          ctx.fillText(line, tx + tagW / 2, ty + 42 + i * 34);
+        });
+      ctx.textAlign = "left";
+      ctx.restore();
+    }
+
+    const leftMargin = 60;
+    const maxW = W - leftMargin * 2 - 40;
+    let cursorY = drawTextStack(ctx, leftMargin, H * 0.66, maxW, { kicker, title });
+
+    const footerH = 90;
+    cursorY = drawBadgeRow(ctx, badges, leftMargin, cursorY + 34, maxW);
+
+    if (location) {
+      const locY = cursorY + 30;
+      drawPin(ctx, leftMargin + 12, locY - 8, 24);
+      ctx.font = "600 24px Montserrat, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(location, leftMargin + 32, locY);
+    }
+    if (signature) {
+      ctx.textAlign = "right";
+      ctx.font = "700 36px Caveat, cursive";
+      ctx.fillStyle = COLORS.lime;
+      ctx.fillText(signature, W - leftMargin, H - 44);
+      ctx.textAlign = "left";
+    }
+
+    ctx.restore();
+    return;
+  }
+
+  if (template === "hexagonos") {
+    if (photo) {
+      drawCover(ctx, photo, 0, 0, W, H, zoom);
+    } else {
+      ctx.fillStyle = COLORS.greenDark;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    const splitX = W * 0.62;
+    const grad = ctx.createLinearGradient(0, 0, splitX + 140, 0);
+    grad.addColorStop(0, "rgba(11,61,46,0.95)");
+    grad.addColorStop(0.72, "rgba(11,61,46,0.88)");
+    grad.addColorStop(1, "rgba(11,61,46,0)");
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(splitX + 140, 0);
+    ctx.lineTo(splitX - 60, H);
+    ctx.lineTo(0, H);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.save();
+    ctx.globalAlpha = 0.18;
+    ctx.strokeStyle = COLORS.lime;
+    ctx.lineWidth = 6;
+    drawHexOutline(ctx, splitX - 40, H * 0.15, 70);
+    drawHexOutline(ctx, splitX + 10, H * 0.28, 40);
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = reveal;
+    ctx.translate(0, (1 - reveal) * 26);
+
+    ctx.textAlign = "left";
+    drawLogoTopLeft(ctx, logo, 60);
+
+    const leftMargin = 60;
+    const maxW = splitX - leftMargin - 40;
+    let cursorY = drawTextStack(ctx, leftMargin, H * 0.36, maxW, {
+      kicker,
+      title,
+      highlight,
+      body,
+    });
+
+    const footerH = 90;
+    const activeBadges = badges.filter(Boolean).slice(0, 3);
+    const badgeY = cursorY + 40;
+    if (activeBadges.length) {
+      const hexR = 30;
+      const colW = maxW / activeBadges.length;
+      activeBadges.forEach((label, i) => {
+        const colX = leftMargin + i * colW + hexR;
+        ctx.save();
+        ctx.strokeStyle = COLORS.lime;
+        ctx.lineWidth = 3;
+        drawHexOutline(ctx, colX, badgeY, hexR);
+        ctx.restore();
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "700 22px Montserrat, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(String(i + 1), colX, badgeY + 8);
+        ctx.textAlign = "left";
+        ctx.font = "700 19px Montserrat, sans-serif";
+        wrapText(ctx, label, colW - 16)
+          .slice(0, 2)
+          .forEach((line, li) => {
+            ctx.fillText(line, leftMargin + i * colW, badgeY + hexR + 26 + li * 24);
+          });
+      });
+      cursorY = badgeY + hexR * 2 + 26;
+    }
+
+    if (location) {
+      const locY = cursorY + 30;
+      drawPin(ctx, leftMargin + 12, locY - 8, 24);
+      ctx.font = "600 24px Montserrat, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(location, leftMargin + 32, locY);
+    }
+    if (signature) {
+      ctx.textAlign = "right";
+      ctx.font = "700 38px Caveat, cursive";
+      ctx.fillStyle = COLORS.lime;
+      ctx.fillText(signature, W - 60, H - 40);
+      ctx.textAlign = "left";
+    }
+
+    ctx.restore();
+    return;
+  }
+
+  if (template === "numerado") {
+    const grad = ctx.createLinearGradient(0, 0, W, H);
+    grad.addColorStop(0, COLORS.greenDark);
+    grad.addColorStop(1, COLORS.green);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.save();
+    ctx.globalAlpha = 0.12;
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.arc(W - 60, 60, 220, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = reveal;
+    ctx.translate(0, (1 - reveal) * 26);
+
+    ctx.textAlign = "left";
+    drawLogoTopLeft(ctx, logo, 60);
+
+    const leftMargin = 70;
+    const maxW = W - leftMargin * 2;
+    const cursorY = drawTextStack(ctx, leftMargin, H * 0.28, maxW, { kicker, title, highlight });
+
+    const steps = badges.filter(Boolean).slice(0, 3);
+    let stepY = cursorY + 60;
+    steps.forEach((label, i) => {
+      const r = 34;
+      ctx.fillStyle = COLORS.lime;
+      ctx.beginPath();
+      ctx.arc(leftMargin + r, stepY + r, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = COLORS.greenDark;
+      ctx.font = "800 30px Montserrat, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(String(i + 1), leftMargin + r, stepY + r + 11);
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "700 26px Montserrat, sans-serif";
+      wrapText(ctx, label, maxW - r * 2 - 30)
+        .slice(0, 2)
+        .forEach((line, li) => {
+          ctx.fillText(line, leftMargin + r * 2 + 24, stepY + r - 4 + li * 32);
+        });
+      if (i < steps.length - 1) {
+        ctx.strokeStyle = "rgba(255,255,255,0.35)";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(leftMargin + r, stepY + r * 2 + 6);
+        ctx.lineTo(leftMargin + r, stepY + 130 - 6);
+        ctx.stroke();
+      }
+      stepY += 130;
+    });
+
+    if (location) {
+      ctx.font = "600 24px Montserrat, sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.fillText(location, leftMargin, H - 60);
+    }
+    if (signature) {
+      ctx.textAlign = "right";
+      ctx.font = "700 38px Caveat, cursive";
+      ctx.fillStyle = COLORS.lime;
+      ctx.fillText(signature, W - leftMargin, H - 60);
+      ctx.textAlign = "left";
+    }
+
+    ctx.restore();
+    return;
+  }
+
+  if (template === "estatistica") {
+    ctx.fillStyle = COLORS.greenDark;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.save();
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle = COLORS.lime;
+    ctx.beginPath();
+    ctx.moveTo(W, 0);
+    ctx.lineTo(W, H * 0.3);
+    ctx.lineTo(W * 0.65, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = reveal;
+    ctx.translate(0, (1 - reveal) * 26);
+
+    ctx.textAlign = "left";
+    drawLogoTopLeft(ctx, logo, 60);
+
+    const leftMargin = 70;
+    const maxW = W - leftMargin * 2;
+    const cursorY = drawTextStack(ctx, leftMargin, H * 0.32, maxW, {
+      kicker,
+      title,
+      highlight,
+      highlightSize: 96,
+    });
+
+    const stats = badges.filter(Boolean).slice(0, 3);
+    const chipY = cursorY + 60;
+    const chipH = 130;
+    const gap = 20;
+    const chipW = (maxW - gap * (stats.length - 1)) / Math.max(stats.length, 1);
+    stats.forEach((label, i) => {
+      const chipX = leftMargin + i * (chipW + gap);
+      ctx.fillStyle = "rgba(255,255,255,0.08)";
+      roundRect(ctx, chipX, chipY, chipW, chipH, 16);
+      ctx.fill();
+      ctx.strokeStyle = COLORS.lime;
+      ctx.lineWidth = 2;
+      roundRect(ctx, chipX, chipY, chipW, chipH, 16);
+      ctx.stroke();
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "700 20px Montserrat, sans-serif";
+      ctx.textAlign = "center";
+      wrapText(ctx, label, chipW - 24)
+        .slice(0, 3)
+        .forEach((line, li) => {
+          ctx.fillText(line, chipX + chipW / 2, chipY + chipH / 2 - 8 + li * 24);
+        });
+      ctx.textAlign = "left";
+    });
+
+    if (location) {
+      ctx.font = "600 24px Montserrat, sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.fillText(location, leftMargin, H - 50);
+    }
+    if (signature) {
+      ctx.textAlign = "right";
+      ctx.font = "700 38px Caveat, cursive";
+      ctx.fillStyle = COLORS.lime;
+      ctx.fillText(signature, W - leftMargin, H - 50);
+      ctx.textAlign = "left";
+    }
+
+    ctx.restore();
+    return;
+  }
+
+  if (template === "citacao") {
+    const grad = ctx.createLinearGradient(0, 0, W, H);
+    grad.addColorStop(0, COLORS.greenDark);
+    grad.addColorStop(1, COLORS.green);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.save();
+    ctx.globalAlpha = reveal;
+    ctx.translate(0, (1 - reveal) * 26);
+
+    ctx.textAlign = "left";
+    drawLogoTopLeft(ctx, logo, 60);
+
+    ctx.fillStyle = "rgba(255,255,255,0.14)";
+    ctx.font = "800 220px Georgia, serif";
+    ctx.fillText("“", 50, H * 0.42);
+
+    const leftMargin = 70;
+    const maxW = W - leftMargin * 2;
+    let cursorY = H * 0.4;
+    if (kicker) {
+      ctx.font = "700 26px Montserrat, sans-serif";
+      ctx.fillStyle = COLORS.lime;
+      wrapText(ctx, kicker.toUpperCase(), maxW).forEach((line) => {
+        ctx.fillText(line, leftMargin, cursorY);
+        cursorY += 34;
+      });
+      cursorY += 20;
+    }
+    if (body) {
+      ctx.font = "600 40px Montserrat, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      wrapText(ctx, body, maxW).forEach((line) => {
+        ctx.fillText(line, leftMargin, cursorY);
+        cursorY += 52;
+      });
+    }
+    cursorY += 20;
+    ctx.strokeStyle = COLORS.lime;
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(leftMargin, cursorY);
+    ctx.lineTo(leftMargin + 90, cursorY);
+    ctx.stroke();
+    cursorY += 40;
+    if (signature) {
+      ctx.font = "700 36px Caveat, cursive";
+      ctx.fillStyle = COLORS.lime;
+      ctx.fillText(signature, leftMargin, cursorY);
+    }
+
+    if (location) {
+      ctx.font = "600 24px Montserrat, sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.8)";
+      ctx.fillText(location, leftMargin, H - 50);
+    }
+
+    ctx.restore();
+    return;
+  }
+
+  if (template === "linhas") {
+    ctx.fillStyle = "#F7F5EF";
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.save();
+    ctx.globalAlpha = reveal;
+    ctx.translate(0, (1 - reveal) * 26);
+
+    ctx.strokeStyle = "rgba(37,51,57,0.15)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(60, 170);
+    ctx.lineTo(W - 60, 170);
+    ctx.stroke();
+
+    ctx.textAlign = "left";
+    ctx.font = "800 26px Montserrat, sans-serif";
+    ctx.fillStyle = COLORS.greenDark;
+    ctx.fillText("NORTE DRONES", 60, 110);
+
+    const leftMargin = 60;
+    const maxW = W - leftMargin * 2;
+    const cursorY = drawTextStack(ctx, leftMargin, 250, maxW, {
+      kicker,
+      title,
+      highlight,
+      body,
+      kickerColor: COLORS.green,
+      titleColor: COLORS.graphite,
+      highlightColor: COLORS.green,
+      bodyColor: "rgba(37,51,57,0.75)",
+    });
+
+    const activeBadges = badges.filter(Boolean).slice(0, 3);
+    const badgeY = cursorY + 50;
+    activeBadges.forEach((label, i) => {
+      const rowY = badgeY + i * 44;
+      ctx.fillStyle = COLORS.green;
+      ctx.fillRect(leftMargin, rowY - 14, 14, 14);
+      ctx.font = "600 24px Montserrat, sans-serif";
+      ctx.fillStyle = COLORS.graphite;
+      ctx.fillText(label, leftMargin + 30, rowY);
+    });
+
+    ctx.strokeStyle = "rgba(37,51,57,0.15)";
+    ctx.beginPath();
+    ctx.moveTo(60, H - 90);
+    ctx.lineTo(W - 60, H - 90);
+    ctx.stroke();
+
+    if (location) {
+      ctx.font = "600 22px Montserrat, sans-serif";
+      ctx.fillStyle = COLORS.graphite;
+      ctx.fillText(location, leftMargin, H - 50);
+    }
+    if (signature) {
+      ctx.textAlign = "right";
+      ctx.font = "700 34px Caveat, cursive";
+      ctx.fillStyle = COLORS.green;
+      ctx.fillText(signature, W - leftMargin, H - 50);
+      ctx.textAlign = "left";
+    }
+
+    ctx.restore();
+    return;
+  }
+
+  if (template === "impacto") {
+    ctx.fillStyle = COLORS.amber;
+    ctx.fillRect(0, 0, W, H);
+    ctx.save();
+    ctx.globalAlpha = 0.14;
+    ctx.fillStyle = COLORS.greenDark;
+    ctx.beginPath();
+    ctx.moveTo(0, H * 0.7);
+    ctx.lineTo(W * 0.4, H);
+    ctx.lineTo(0, H);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(W, 0);
+    ctx.lineTo(W, H * 0.35);
+    ctx.lineTo(W * 0.6, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = reveal;
+    ctx.translate(0, (1 - reveal) * 26);
+
+    ctx.textAlign = "left";
+    const leftMargin = 60;
+    const maxW = W - leftMargin * 2;
+    let cursorY = H * 0.32;
+    if (kicker) {
+      ctx.font = "700 28px Montserrat, sans-serif";
+      ctx.fillStyle = COLORS.greenDark;
+      wrapText(ctx, kicker.toUpperCase(), maxW).forEach((line) => {
+        ctx.fillText(line, leftMargin, cursorY);
+        cursorY += 36;
+      });
+      cursorY += 60;
+    }
+    if (title) {
+      ctx.font = "800 96px Montserrat, sans-serif";
+      ctx.fillStyle = COLORS.greenDark;
+      wrapText(ctx, title.toUpperCase(), maxW).forEach((line) => {
+        ctx.fillText(line, leftMargin, cursorY);
+        cursorY += 90;
+      });
+    }
+    if (highlight) {
+      ctx.font = "800 96px Montserrat, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      wrapText(ctx, highlight.toUpperCase(), maxW).forEach((line) => {
+        ctx.fillText(line, leftMargin, cursorY);
+        cursorY += 90;
+      });
+    }
+
+    if (location) {
+      ctx.font = "600 24px Montserrat, sans-serif";
+      ctx.fillStyle = COLORS.greenDark;
+      ctx.fillText(location, leftMargin, H - 50);
+    }
+    if (signature) {
+      ctx.textAlign = "right";
+      ctx.font = "700 38px Caveat, cursive";
+      ctx.fillStyle = COLORS.greenDark;
+      ctx.fillText(signature, W - leftMargin, H - 50);
       ctx.textAlign = "left";
     }
 
