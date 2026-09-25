@@ -28,9 +28,21 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Domínio não permitido." }, { status: 400 });
   }
 
-  const upstream = await fetch(url.toString(), { cache: "no-store" });
+  let upstream: Response;
+  try {
+    upstream = await fetch(url.toString(), {
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: `Falha ao buscar a imagem: ${detail}` }, { status: 502 });
+  }
   if (!upstream.ok || !upstream.body) {
-    return NextResponse.json({ error: "Não foi possível buscar a imagem." }, { status: 502 });
+    return NextResponse.json(
+      { error: `Não foi possível buscar a imagem (status ${upstream.status}).` },
+      { status: 502 }
+    );
   }
 
   return new NextResponse(upstream.body, {
