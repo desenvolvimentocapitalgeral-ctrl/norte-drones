@@ -60,12 +60,21 @@ export function toCanvasSafeSrc(src: string): string {
   }
 }
 
-export function loadImage(src: string): Promise<HTMLImageElement> {
+export function loadImage(src: string, timeoutMs = 15000): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = reject;
+    const timer = setTimeout(() => {
+      reject(new Error(`Tempo esgotado carregando imagem: ${src.slice(0, 80)}`));
+    }, timeoutMs);
+    img.onload = () => {
+      clearTimeout(timer);
+      resolve(img);
+    };
+    img.onerror = () => {
+      clearTimeout(timer);
+      reject(new Error(`Não foi possível carregar a imagem: ${src.slice(0, 80)}`));
+    };
     img.src = toCanvasSafeSrc(src);
   });
 }
@@ -1055,8 +1064,20 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 }
 
 export async function loadFonts() {
-  await document.fonts.load("800 66px Montserrat");
-  await document.fonts.load("500 36px Montserrat");
-  await document.fonts.load("700 46px Caveat");
-  await document.fonts.ready;
+  // Se a Font Loading API travar por algum motivo (já vimos isso
+  // acontecer com outras esperas assíncronas em navegadores móveis),
+  // preferimos desenhar com uma fonte de reserva a travar pra sempre
+  // numa tela em branco.
+  const timeout = new Promise<void>((resolve) => setTimeout(resolve, 4000));
+  const fonts = (async () => {
+    try {
+      await document.fonts.load("800 66px Montserrat");
+      await document.fonts.load("500 36px Montserrat");
+      await document.fonts.load("700 46px Caveat");
+      await document.fonts.ready;
+    } catch {
+      // segue com a fonte de reserva do navegador
+    }
+  })();
+  await Promise.race([fonts, timeout]);
 }
