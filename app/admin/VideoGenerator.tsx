@@ -18,7 +18,10 @@ import { PhotoPicker, resolvePhotoSrc, type PhotoSource } from "./PhotoPicker";
 import { shareOrDownloadFile } from "./shareFile";
 
 const DURATION_S = 5.5;
-const MAX_VIDEO_DURATION_S = 12;
+// Limite de segurança bem alto (não é um limite "prático") — só pra
+// evitar travar o navegador num caso extremo (ex.: duration=Infinity).
+// O vídeo enviado é sempre renderizado por inteiro, do começo ao fim.
+const MAX_VIDEO_DURATION_S = 600;
 const REVEAL_START = 0.4;
 const REVEAL_END = 1.3;
 const FADE_S = 0.4;
@@ -566,7 +569,7 @@ export function VideoGenerator({
 
         <p className="text-xs leading-relaxed text-nd-graphite/50">
           {photoChoice === "video" && videoObjectUrl
-            ? `O vídeo enviado é usado como base (até ${MAX_VIDEO_DURATION_S}s, com o áudio original) e sai em .webm — funciona bem no Instagram e WhatsApp. Nada é enviado nem salvo em servidor.`
+            ? "O vídeo enviado é usado como base do início ao fim, com o áudio original, e sai em .webm — funciona bem no Instagram e WhatsApp. Nada é enviado nem salvo em servidor."
             : `O vídeo é gravado ao vivo no seu navegador (leva ${DURATION_S}s pra gerar) e sai em .webm — funciona bem no Instagram e WhatsApp. Nada é enviado nem salvo em servidor.`}
         </p>
       </div>
