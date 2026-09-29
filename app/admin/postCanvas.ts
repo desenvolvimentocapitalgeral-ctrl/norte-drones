@@ -1,3 +1,5 @@
+import QRCode from "qrcode";
+
 export const W = 1080;
 
 export type TemplateKey =
@@ -21,7 +23,8 @@ export type TemplateKey =
   | "estatistica"
   | "citacao"
   | "linhas"
-  | "impacto";
+  | "impacto"
+  | "whatsapp";
 export type FormatKey = "quadrado" | "story";
 
 export const FORMATS: { key: FormatKey; label: string; height: number }[] = [
@@ -55,6 +58,7 @@ export const TEMPLATES: {
   { key: "promocao", label: "Promoção", needsPhoto: true },
   { key: "diferencial", label: "Diferencial", needsPhoto: false },
   { key: "contato", label: "Contato", needsPhoto: false },
+  { key: "whatsapp", label: "WhatsApp (com QR code)", needsPhoto: false },
 ];
 
 /** Modelos que usam o conjunto de campos "estilo Campanha" (linha pequena,
@@ -123,6 +127,30 @@ export function loadImage(src: string, timeoutMs = 15000): Promise<HTMLImageElem
     };
     img.src = toCanvasSafeSrc(src);
   });
+}
+
+/** Monta o link do WhatsApp a partir do número cadastrado (mesma lógica de
+ * lib/content-store.ts — reimplementada aqui porque aquele arquivo é
+ * "server-only" e não pode ser importado por um componente de cliente). */
+export function buildWhatsAppLinkClient(
+  whatsappNumber: string,
+  whatsappMessage: string
+): string | null {
+  const digits = whatsappNumber.replace(/\D/g, "");
+  if (!digits) return null;
+  const text = encodeURIComponent(whatsappMessage || "");
+  return `https://wa.me/${digits}${text ? `?text=${text}` : ""}`;
+}
+
+/** Gera um QR code (PNG local, nada é enviado pra fora) apontando pro link
+ * dado, já como <img> pronto pra desenhar no canvas. */
+export async function loadQrCode(link: string): Promise<HTMLImageElement> {
+  const dataUrl = await QRCode.toDataURL(link, {
+    margin: 1,
+    width: 512,
+    color: { dark: "#0B3D2E", light: "#FFFFFF" },
+  });
+  return loadImage(dataUrl);
 }
 
 /** Imagem estática ou frame ao vivo de um <video> — ambos podem ser
@@ -471,6 +499,12 @@ export type DrawOpts = {
   location?: string;
   /** Campanha: assinatura em fonte manuscrita (ex.: "Juntos por uma safra melhor!"). */
   signature?: string;
+  /** WhatsApp: QR code (gerado no navegador) apontando pro link wa.me. */
+  qrCode?: HTMLImageElement | null;
+  /** WhatsApp: telefone formatado pra exibir (ex.: "(63) 99999-9999"). */
+  contactPhone?: string;
+  /** WhatsApp: usuário do Instagram formatado (ex.: "@nortedrones"). */
+  contactInstagram?: string;
 };
 
 export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
@@ -490,6 +524,9 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     badges = [],
     location = "",
     signature = "",
+    qrCode = null,
+    contactPhone = "",
+    contactInstagram = "",
   } = opts;
   ctx.clearRect(0, 0, W, H);
 
@@ -1868,7 +1905,8 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
   if (
     template === "frase" ||
     template === "diferencial" ||
-    template === "contato"
+    template === "contato" ||
+    template === "whatsapp"
   ) {
     const grad = ctx.createLinearGradient(0, 0, W, H);
     grad.addColorStop(0, COLORS.green);
@@ -1985,6 +2023,67 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.textBaseline = "middle";
     ctx.fillText(label, W / 2, boxY + boxH / 2 + 2);
     ctx.textBaseline = "alphabetic";
+    ctx.restore();
+    return;
+  }
+
+  if (template === "whatsapp") {
+    ctx.textAlign = "center";
+
+    if (logo) {
+      const w = 560;
+      const h = (logo.height / logo.width) * w;
+      ctx.drawImage(logo, (W - w) / 2, H * 0.05, w, h);
+    }
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "800 52px Montserrat, sans-serif";
+    let cursorY = H * 0.05 + 150;
+    wrapText(ctx, title || "Fale com a gente pelo WhatsApp", W - 160).forEach((line) => {
+      ctx.fillText(line, W / 2, cursorY);
+      cursorY += 60;
+    });
+
+    if (subtitle) {
+      ctx.font = "500 30px Montserrat, sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      cursorY += 10;
+      wrapText(ctx, subtitle, W - 200).forEach((line) => {
+        ctx.fillText(line, W / 2, cursorY);
+        cursorY += 40;
+      });
+    }
+
+    // caixa branca com o QR code, apontando direto pro link wa.me
+    const qrSize = 380;
+    const qrX = (W - qrSize) / 2;
+    const qrY = cursorY + 40;
+    const padQr = 24;
+    ctx.fillStyle = "#ffffff";
+    roundRect(ctx, qrX - padQr, qrY - padQr, qrSize + padQr * 2, qrSize + padQr * 2, 24);
+    ctx.fill();
+    if (qrCode) {
+      ctx.drawImage(qrCode, qrX, qrY, qrSize, qrSize);
+    }
+
+    let footY = qrY + qrSize + padQr + 56;
+    ctx.font = "600 28px Montserrat, sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.8)";
+    ctx.fillText("Aponte a câmera do celular pro QR code", W / 2, footY);
+    footY += 58;
+
+    if (contactPhone) {
+      ctx.font = "800 44px Montserrat, sans-serif";
+      ctx.fillStyle = COLORS.lime;
+      ctx.fillText(contactPhone, W / 2, footY);
+      footY += 52;
+    }
+    if (contactInstagram) {
+      ctx.font = "600 32px Montserrat, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(contactInstagram, W / 2, footY);
+    }
+
     ctx.restore();
     return;
   }

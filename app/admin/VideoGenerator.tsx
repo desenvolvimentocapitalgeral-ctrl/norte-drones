@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { SiteImageKey } from "@/lib/site-image-fields";
+import type { SiteContacts } from "@/lib/content-store";
 import {
   W,
   FORMATS,
@@ -9,6 +10,8 @@ import {
   RICH_FIELD_TEMPLATES,
   loadImage,
   loadFonts,
+  loadQrCode,
+  buildWhatsAppLinkClient,
   draw,
   type TemplateKey,
   type FormatKey,
@@ -93,8 +96,10 @@ function easeOutCubic(t: number) {
 
 export function VideoGenerator({
   siteImages,
+  contacts,
 }: {
   siteImages: Record<SiteImageKey, string>;
+  contacts: SiteContacts;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sourceVideoRef = useRef<HTMLVideoElement>(null);
@@ -175,6 +180,11 @@ export function VideoGenerator({
             if (src) photo = await loadImage(src);
           }
         }
+        let qrCode: HTMLImageElement | null = null;
+        if (template === "whatsapp") {
+          const link = buildWhatsAppLinkClient(contacts.whatsappNumber, contacts.whatsappMessage);
+          if (link) qrCode = await loadQrCode(link);
+        }
         if (cancelled) return;
         draw(ctx, {
           template,
@@ -192,6 +202,9 @@ export function VideoGenerator({
           signature,
           zoom: MAX_ZOOM,
           reveal: 1,
+          qrCode,
+          contactPhone: contacts.phone,
+          contactInstagram: contacts.instagramHandle,
         });
       } catch {
         if (!cancelled) {
@@ -226,6 +239,7 @@ export function VideoGenerator({
     location,
     signature,
     siteImages,
+    contacts,
     activeTemplate.needsPhoto,
   ]);
 
@@ -260,6 +274,12 @@ export function VideoGenerator({
           const src = resolvePhotoSrc(photoChoice, siteImages, uploadedPhoto, aiPhoto);
           if (src) photo = await loadImage(src);
         }
+      }
+
+      let qrCode: HTMLImageElement | null = null;
+      if (template === "whatsapp") {
+        const link = buildWhatsAppLinkClient(contacts.whatsappNumber, contacts.whatsappMessage);
+        if (link) qrCode = await loadQrCode(link);
       }
 
       const clipDuration = sourceVideo
@@ -336,6 +356,9 @@ export function VideoGenerator({
             signature,
             zoom,
             reveal,
+            qrCode,
+            contactPhone: contacts.phone,
+            contactInstagram: contacts.instagramHandle,
           });
 
           // fade from/to black at the edges
