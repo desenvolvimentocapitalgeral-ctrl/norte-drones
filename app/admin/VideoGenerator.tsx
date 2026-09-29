@@ -68,15 +68,22 @@ type VideoWithCapture = HTMLVideoElement & {
   captureStream?: () => MediaStream;
 };
 
+/** Detecta Safari (iOS e macOS) — não dá pra usar feature detection normal
+ * aqui porque o próprio bug que estamos contornando é o
+ * MediaRecorder.isTypeSupported("video/webm") do Safari mentir dizendo que
+ * suporta, quando na prática grava um vídeo quebrado (com pedaços pretos).
+ * Precisamos saber que é Safari ANTES de confiar nesse retorno. */
+function isSafari(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /^((?!chrome|android|crios|fxios|edg).)*safari/i.test(navigator.userAgent);
+}
+
 function pickMimeType(): string | null {
-  const candidates = [
-    "video/webm;codecs=vp9",
-    "video/webm;codecs=vp8",
-    "video/webm",
-    // Safari (iOS e macOS) não grava webm — só entende mp4.
-    "video/mp4;codecs=h264",
-    "video/mp4",
-  ];
+  const webm = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+  const mp4 = ["video/mp4;codecs=h264", "video/mp4"];
+  // No Safari, video/webm "passa" no isTypeSupported mas a gravação sai
+  // corrompida (parte da imagem preta) — força mp4 primeiro nesse caso.
+  const candidates = isSafari() ? [...mp4, ...webm] : [...webm, ...mp4];
   for (const type of candidates) {
     if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(type)) {
       return type;
