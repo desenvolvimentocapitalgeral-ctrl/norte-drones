@@ -212,13 +212,13 @@ export default function AdminDashboard({
 
       {tab === "posts" && (
         <div className="mt-8">
-          <PostGenerator siteImages={siteImages} />
+          <PostGenerator siteImages={siteImages} contacts={form} />
         </div>
       )}
 
       {tab === "video" && (
         <div className="mt-8">
-          <VideoGenerator siteImages={siteImages} />
+          <VideoGenerator siteImages={siteImages} contacts={form} />
         </div>
       )}
     </div>

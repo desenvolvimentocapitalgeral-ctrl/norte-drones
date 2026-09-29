@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { SiteImageKey } from "@/lib/site-image-fields";
+import type { SiteContacts } from "@/lib/content-store";
 import {
   W,
   FORMATS,
@@ -9,6 +10,8 @@ import {
   RICH_FIELD_TEMPLATES,
   loadImage,
   loadFonts,
+  loadQrCode,
+  buildWhatsAppLinkClient,
   draw,
   type TemplateKey,
   type FormatKey,
@@ -18,8 +21,10 @@ import { shareOrDownloadFile, dataUrlToBlob } from "./shareFile";
 
 export function PostGenerator({
   siteImages,
+  contacts,
 }: {
   siteImages: Record<SiteImageKey, string>;
+  contacts: SiteContacts;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [template, setTemplate] = useState<TemplateKey>("servico");
@@ -68,6 +73,18 @@ export function PostGenerator({
           if (src) photo = await loadImage(src);
         }
 
+        let qrCode: HTMLImageElement | null = null;
+        if (template === "whatsapp") {
+          const link = buildWhatsAppLinkClient(contacts.whatsappNumber, contacts.whatsappMessage);
+          if (link) {
+            qrCode = await loadQrCode(link);
+          } else if (!cancelled) {
+            setError(
+              "Cadastre o número de WhatsApp na aba Contatos pra gerar o QR code."
+            );
+          }
+        }
+
         if (cancelled) return;
         draw(ctx, {
           template,
@@ -83,6 +100,9 @@ export function PostGenerator({
           badges: [badge1, badge2, badge3],
           location,
           signature,
+          qrCode,
+          contactPhone: contacts.phone,
+          contactInstagram: contacts.instagramHandle,
         });
         if (!cancelled) setPreviewUrl(canvas.toDataURL("image/png"));
       } catch (err) {
@@ -119,6 +139,7 @@ export function PostGenerator({
     location,
     signature,
     siteImages,
+    contacts,
     activeTemplate.needsPhoto,
   ]);
 
