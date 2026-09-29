@@ -361,20 +361,27 @@ function drawWhatsAppIcon(
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
-  ctx.strokeStyle = "#ffffff";
+  // silhueta simples de telefone: corpo branco arredondado com o "vidro"
+  // em verde por dentro, mais reconhecível que tentar imitar o logo exato.
   ctx.fillStyle = "#ffffff";
-  ctx.lineWidth = Math.max(2, r * 0.1);
+  const pw = r * 0.66;
+  const ph = r * 1.18;
+  roundRect(ctx, cx - pw / 2, cy - ph / 2, pw, ph, pw * 0.32);
+  ctx.fill();
+  ctx.fillStyle = "#25D366";
+  roundRect(
+    ctx,
+    cx - pw / 2 + pw * 0.12,
+    cy - ph / 2 + ph * 0.15,
+    pw * 0.76,
+    ph * 0.58,
+    pw * 0.16
+  );
+  ctx.fill();
+  ctx.fillStyle = "#ffffff";
   ctx.beginPath();
-  ctx.arc(cx, cy - r * 0.05, r * 0.55, Math.PI * 0.15, Math.PI * 1.85, false);
-  ctx.lineTo(cx - r * 0.18, cy + r * 0.5);
-  ctx.lineTo(cx - r * 0.02, cy + r * 0.26);
-  ctx.closePath();
-  ctx.stroke();
-  [-0.22, 0, 0.22].forEach((dx) => {
-    ctx.beginPath();
-    ctx.arc(cx + dx * r, cy - r * 0.05, r * 0.07, 0, Math.PI * 2);
-    ctx.fill();
-  });
+  ctx.arc(cx, cy + ph * 0.36, pw * 0.13, 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }
 
@@ -2144,6 +2151,8 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
   }
 
   if (template === "whatsapp-foto") {
+    // a foto fica praticamente inteira à mostra — só um véu leve embaixo,
+    // atrás do cartão de contato, pra foto ser o destaque do post.
     if (photo) {
       drawCover(ctx, photo, 0, 0, W, H, zoom);
     } else {
@@ -2151,74 +2160,81 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.fillRect(0, 0, W, H);
     }
 
-    // véu escuro só na parte de baixo, pra foto continuar aparecendo em
-    // cima e o QR/contato ficarem legíveis embaixo.
-    const fogStart = H * 0.3;
-    const fog = ctx.createLinearGradient(0, fogStart, 0, H);
-    fog.addColorStop(0, "rgba(11,61,46,0)");
-    fog.addColorStop(0.35, "rgba(11,61,46,0.82)");
-    fog.addColorStop(1, "rgba(11,61,46,0.97)");
+    const cardMargin = 56;
+    const cardH = 224;
+    const cardY = H - cardH - 64;
+
+    const fog = ctx.createLinearGradient(0, cardY - 140, 0, H);
+    fog.addColorStop(0, "rgba(0,0,0,0)");
+    fog.addColorStop(1, "rgba(0,0,0,0.5)");
     ctx.fillStyle = fog;
-    ctx.fillRect(0, fogStart, W, H - fogStart);
+    ctx.fillRect(0, cardY - 140, W, H - (cardY - 140));
 
     ctx.save();
     ctx.globalAlpha = reveal;
     ctx.translate(0, (1 - reveal) * 26);
 
     ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 60);
+    drawLogoTopLeft(ctx, logo, 56);
 
-    ctx.textAlign = "center";
-    ctx.font = "800 48px Montserrat, sans-serif";
+    // selo pequeno acima do cartão, no estilo dos outros modelos
+    ctx.font = "700 24px Montserrat, sans-serif";
+    const kickerText = (title || "Fale com a gente").toUpperCase();
+    const kickerW = ctx.measureText(kickerText).width;
+    const kickerPadX = 22;
+    const kickerH = 46;
+    const kickerY = cardY - kickerH - 22;
+    ctx.fillStyle = COLORS.lime;
+    roundRect(ctx, cardMargin, kickerY, kickerW + kickerPadX * 2, kickerH, kickerH / 2);
+    ctx.fill();
+    ctx.fillStyle = COLORS.greenDark;
+    ctx.textBaseline = "middle";
+    ctx.fillText(kickerText, cardMargin + kickerPadX, kickerY + kickerH / 2 + 1);
+    ctx.textBaseline = "alphabetic";
+
+    // cartão translúcido no rodapé, estilo "cartão de visita"
+    const cardW = W - cardMargin * 2;
+    ctx.fillStyle = "rgba(11,61,46,0.82)";
+    roundRect(ctx, cardMargin, cardY, cardW, cardH, 26);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.2)";
+    ctx.lineWidth = 2;
+    roundRect(ctx, cardMargin, cardY, cardW, cardH, 26);
+    ctx.stroke();
+
+    // QR pequeno, só um reforço no canto direito do cartão — não é mais
+    // o protagonista da arte, o telefone/Instagram é que chamam atenção.
+    const qrSize = 168;
+    const qrPad = 16;
+    const qrBoxX = cardMargin + cardW - qrSize - 32;
+    const qrBoxY = cardY + (cardH - qrSize) / 2;
     ctx.fillStyle = "#ffffff";
-    let cursorY = H * 0.32;
-    wrapText(ctx, title || "Fale com a gente pelo WhatsApp", W - 180).forEach((line) => {
-      ctx.fillText(line, W / 2, cursorY);
-      cursorY += 56;
-    });
-    cursorY += 12;
+    roundRect(ctx, qrBoxX - qrPad, qrBoxY - qrPad, qrSize + qrPad * 2, qrSize + qrPad * 2, 18);
+    ctx.fill();
+    if (qrCode) {
+      ctx.drawImage(qrCode, qrBoxX, qrBoxY, qrSize, qrSize);
+    }
+
+    // telefone e Instagram, à esquerda do cartão
+    const contentX = cardMargin + 34;
+    const hasBoth = Boolean(contactPhone) && Boolean(contactInstagram);
+    let rowY = cardY + cardH / 2 - (hasBoth ? 32 : 0);
 
     if (contactPhone) {
-      const iconR = 34;
-      ctx.font = "800 46px Montserrat, sans-serif";
-      const textW = ctx.measureText(contactPhone).width;
-      const rowW = iconR * 2 + 20 + textW;
-      const rowX = (W - rowW) / 2;
-      drawWhatsAppIcon(ctx, rowX + iconR, cursorY - iconR * 0.55, iconR);
-      ctx.textAlign = "left";
+      const iconR = 27;
+      drawWhatsAppIcon(ctx, contentX + iconR, rowY, iconR);
+      ctx.font = "800 34px Montserrat, sans-serif";
       ctx.fillStyle = "#ffffff";
-      ctx.fillText(contactPhone, rowX + iconR * 2 + 20, cursorY);
-      ctx.textAlign = "center";
-      cursorY += 68;
+      ctx.fillText(contactPhone, contentX + iconR * 2 + 16, rowY + 12);
+      rowY += 66;
     }
 
     if (contactInstagram) {
-      const iconR = 26;
-      ctx.font = "700 34px Montserrat, sans-serif";
-      const textW = ctx.measureText(contactInstagram).width;
-      const rowW = iconR * 2 + 16 + textW;
-      const rowX = (W - rowW) / 2;
-      drawInstagramIcon(ctx, rowX + iconR, cursorY - iconR * 0.55, iconR);
-      ctx.textAlign = "left";
+      const iconR = 24;
+      drawInstagramIcon(ctx, contentX + iconR, rowY, iconR);
+      ctx.font = "700 29px Montserrat, sans-serif";
       ctx.fillStyle = "#ffffff";
-      ctx.fillText(contactInstagram, rowX + iconR * 2 + 16, cursorY);
-      ctx.textAlign = "center";
-      cursorY += 50;
-    }
-
-    // QR code — o tamanho se ajusta ao espaço que sobrou, então nunca
-    // estoura o rodapé, mas com um teto mais comedido pra não competir
-    // com o telefone/Instagram, que agora estão bem maiores.
-    const padQr = 22;
-    const available = H - 50 - (cursorY + 30);
-    const qrSize = Math.max(240, Math.min(420, available - padQr * 2));
-    const qrX = (W - qrSize) / 2;
-    const qrY = cursorY + 30;
-    ctx.fillStyle = "#ffffff";
-    roundRect(ctx, qrX - padQr, qrY - padQr, qrSize + padQr * 2, qrSize + padQr * 2, 26);
-    ctx.fill();
-    if (qrCode) {
-      ctx.drawImage(qrCode, qrX, qrY, qrSize, qrSize);
+      ctx.fillText(contactInstagram, contentX + iconR * 2 + 14, rowY + 10);
     }
 
     ctx.restore();
