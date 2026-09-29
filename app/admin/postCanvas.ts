@@ -24,7 +24,8 @@ export type TemplateKey =
   | "citacao"
   | "linhas"
   | "impacto"
-  | "whatsapp";
+  | "whatsapp"
+  | "whatsapp-foto";
 export type FormatKey = "quadrado" | "story";
 
 export const FORMATS: { key: FormatKey; label: string; height: number }[] = [
@@ -59,6 +60,7 @@ export const TEMPLATES: {
   { key: "diferencial", label: "Diferencial", needsPhoto: false },
   { key: "contato", label: "Contato", needsPhoto: false },
   { key: "whatsapp", label: "WhatsApp (com QR code)", needsPhoto: false },
+  { key: "whatsapp-foto", label: "WhatsApp (com foto e QR grande)", needsPhoto: true },
 ];
 
 /** Modelos que usam o conjunto de campos "estilo Campanha" (linha pequena,
@@ -344,6 +346,59 @@ function drawPin(
   ctx.fillStyle = COLORS.greenDark;
   ctx.beginPath();
   ctx.arc(x, y, size * 0.12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawWhatsAppIcon(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number
+) {
+  ctx.save();
+  ctx.fillStyle = "#25D366";
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#ffffff";
+  ctx.fillStyle = "#ffffff";
+  ctx.lineWidth = Math.max(2, r * 0.1);
+  ctx.beginPath();
+  ctx.arc(cx, cy - r * 0.05, r * 0.55, Math.PI * 0.15, Math.PI * 1.85, false);
+  ctx.lineTo(cx - r * 0.18, cy + r * 0.5);
+  ctx.lineTo(cx - r * 0.02, cy + r * 0.26);
+  ctx.closePath();
+  ctx.stroke();
+  [-0.22, 0, 0.22].forEach((dx) => {
+    ctx.beginPath();
+    ctx.arc(cx + dx * r, cy - r * 0.05, r * 0.07, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.restore();
+}
+
+function drawInstagramIcon(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number
+) {
+  ctx.save();
+  ctx.fillStyle = "#C2185B";
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = Math.max(2, r * 0.1);
+  roundRect(ctx, cx - r * 0.5, cy - r * 0.5, r, r, r * 0.28);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.26, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath();
+  ctx.arc(cx + r * 0.28, cy - r * 0.28, r * 0.07, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }
@@ -2082,6 +2137,88 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.font = "600 32px Montserrat, sans-serif";
       ctx.fillStyle = "#ffffff";
       ctx.fillText(contactInstagram, W / 2, footY);
+    }
+
+    ctx.restore();
+    return;
+  }
+
+  if (template === "whatsapp-foto") {
+    if (photo) {
+      drawCover(ctx, photo, 0, 0, W, H, zoom);
+    } else {
+      ctx.fillStyle = COLORS.greenDark;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // véu escuro só na parte de baixo, pra foto continuar aparecendo em
+    // cima e o QR/contato ficarem legíveis embaixo.
+    const fogStart = H * 0.3;
+    const fog = ctx.createLinearGradient(0, fogStart, 0, H);
+    fog.addColorStop(0, "rgba(11,61,46,0)");
+    fog.addColorStop(0.35, "rgba(11,61,46,0.82)");
+    fog.addColorStop(1, "rgba(11,61,46,0.97)");
+    ctx.fillStyle = fog;
+    ctx.fillRect(0, fogStart, W, H - fogStart);
+
+    ctx.save();
+    ctx.globalAlpha = reveal;
+    ctx.translate(0, (1 - reveal) * 26);
+
+    ctx.textAlign = "left";
+    drawLogoTopLeft(ctx, logo, 60);
+
+    ctx.textAlign = "center";
+    ctx.font = "800 48px Montserrat, sans-serif";
+    ctx.fillStyle = "#ffffff";
+    let cursorY = H * 0.32;
+    wrapText(ctx, title || "Fale com a gente pelo WhatsApp", W - 180).forEach((line) => {
+      ctx.fillText(line, W / 2, cursorY);
+      cursorY += 56;
+    });
+    cursorY += 12;
+
+    if (contactPhone) {
+      const iconR = 34;
+      ctx.font = "800 46px Montserrat, sans-serif";
+      const textW = ctx.measureText(contactPhone).width;
+      const rowW = iconR * 2 + 20 + textW;
+      const rowX = (W - rowW) / 2;
+      drawWhatsAppIcon(ctx, rowX + iconR, cursorY - iconR * 0.55, iconR);
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(contactPhone, rowX + iconR * 2 + 20, cursorY);
+      ctx.textAlign = "center";
+      cursorY += 68;
+    }
+
+    if (contactInstagram) {
+      const iconR = 26;
+      ctx.font = "700 34px Montserrat, sans-serif";
+      const textW = ctx.measureText(contactInstagram).width;
+      const rowW = iconR * 2 + 16 + textW;
+      const rowX = (W - rowW) / 2;
+      drawInstagramIcon(ctx, rowX + iconR, cursorY - iconR * 0.55, iconR);
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(contactInstagram, rowX + iconR * 2 + 16, cursorY);
+      ctx.textAlign = "center";
+      cursorY += 50;
+    }
+
+    // QR code — o tamanho se ajusta ao espaço que sobrou, então nunca
+    // estoura o rodapé, mas com um teto mais comedido pra não competir
+    // com o telefone/Instagram, que agora estão bem maiores.
+    const padQr = 22;
+    const available = H - 50 - (cursorY + 30);
+    const qrSize = Math.max(240, Math.min(420, available - padQr * 2));
+    const qrX = (W - qrSize) / 2;
+    const qrY = cursorY + 30;
+    ctx.fillStyle = "#ffffff";
+    roundRect(ctx, qrX - padQr, qrY - padQr, qrSize + padQr * 2, qrSize + padQr * 2, 26);
+    ctx.fill();
+    if (qrCode) {
+      ctx.drawImage(qrCode, qrX, qrY, qrSize, qrSize);
     }
 
     ctx.restore();

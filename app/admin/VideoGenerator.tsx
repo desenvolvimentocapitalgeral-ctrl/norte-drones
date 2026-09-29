@@ -181,7 +181,7 @@ export function VideoGenerator({
           }
         }
         let qrCode: HTMLImageElement | null = null;
-        if (template === "whatsapp") {
+        if (template === "whatsapp" || template === "whatsapp-foto") {
           const link = buildWhatsAppLinkClient(contacts.whatsappNumber, contacts.whatsappMessage);
           if (link) qrCode = await loadQrCode(link);
         }
@@ -277,7 +277,7 @@ export function VideoGenerator({
       }
 
       let qrCode: HTMLImageElement | null = null;
-      if (template === "whatsapp") {
+      if (template === "whatsapp" || template === "whatsapp-foto") {
         const link = buildWhatsAppLinkClient(contacts.whatsappNumber, contacts.whatsappMessage);
         if (link) qrCode = await loadQrCode(link);
       }
