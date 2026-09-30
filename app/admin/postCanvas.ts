@@ -296,24 +296,28 @@ function drawLogoTopLeft(
   ctx: CanvasRenderingContext2D,
   logo: HTMLImageElement | null,
   margin: number,
-  logoScale = 1
+  logoScale = 1,
+  logoOffsetX = 0,
+  logoOffsetY = 0
 ) {
   if (!logo) return;
   const w = 760 * logoScale;
   const h = (logo.height / logo.width) * w;
-  ctx.drawImage(logo, margin, margin, w, h);
+  ctx.drawImage(logo, margin + logoOffsetX, margin + logoOffsetY, w, h);
 }
 
 function drawLogoTopRight(
   ctx: CanvasRenderingContext2D,
   logo: HTMLImageElement | null,
   margin: number,
-  logoScale = 1
+  logoScale = 1,
+  logoOffsetX = 0,
+  logoOffsetY = 0
 ) {
   if (!logo) return;
   const w = 760 * logoScale;
   const h = (logo.height / logo.width) * w;
-  ctx.drawImage(logo, W - margin - w, margin, w, h);
+  ctx.drawImage(logo, W - margin - w + logoOffsetX, margin + logoOffsetY, w, h);
 }
 
 type BadgeIcon = "precisao" | "produtividade" | "seguranca";
@@ -613,6 +617,10 @@ export type DrawOpts = {
   logoScale?: number;
   /** Tamanho geral do texto (1 = padrão do modelo). */
   fontScale?: number;
+  /** Deslocamento manual da logo em px, a partir da posição padrão do modelo. */
+  logoOffsetX?: number;
+  /** Deslocamento manual da logo em px, a partir da posição padrão do modelo. */
+  logoOffsetY?: number;
   /** Campanha: pequena linha acima do título (ex.: "ESTÁ CHEGANDO A"). */
   kicker?: string;
   /** Campanha: segunda linha do título, em destaque (ex.: "SAFRA 26/27"). */
@@ -654,6 +662,8 @@ export function drawWhatsappFotoOverlay(
     contactInstagram?: string;
     logoScale?: number;
     fontScale?: number;
+    logoOffsetX?: number;
+    logoOffsetY?: number;
   }
 ) {
   const {
@@ -665,6 +675,8 @@ export function drawWhatsappFotoOverlay(
     contactInstagram = "",
     logoScale = 1,
     fontScale = 1,
+    logoOffsetX = 0,
+    logoOffsetY = 0,
   } = opts;
   const ctx = scaledFontContext(rawCtx, fontScale);
 
@@ -689,7 +701,7 @@ export function drawWhatsappFotoOverlay(
   ctx.fillRect(0, 0, W, 300);
 
   ctx.textAlign = "left";
-  drawLogoTopLeft(ctx, logo, 56, logoScale);
+  drawLogoTopLeft(ctx, logo, 56, logoScale, logoOffsetX, logoOffsetY);
 
   // selo pequeno acima do cartão, no estilo dos outros modelos
   ctx.font = "700 24px Montserrat, sans-serif";
@@ -768,6 +780,8 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     photoScale = 1,
     logoScale = 1,
     fontScale = 1,
+    logoOffsetX = 0,
+    logoOffsetY = 0,
     kicker = "",
     highlight = "",
     body = "",
@@ -810,7 +824,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.translate(0, (1 - reveal) * 26);
 
     ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 60, logoScale);
+    drawLogoTopLeft(ctx, logo, 60, logoScale, logoOffsetX, logoOffsetY);
 
     const leftMargin = 60;
     const maxTextW = splitX - leftMargin - 40;
@@ -938,7 +952,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.translate(0, (1 - reveal) * 26);
 
     ctx.textAlign = "right";
-    drawLogoTopRight(ctx, logo, 60, logoScale);
+    drawLogoTopRight(ctx, logo, 60, logoScale, logoOffsetX, logoOffsetY);
 
     const rightMargin = 60;
     const textX = W - rightMargin;
@@ -1087,7 +1101,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.translate(0, (1 - reveal) * 26);
 
     ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 60, logoScale);
+    drawLogoTopLeft(ctx, logo, 60, logoScale, logoOffsetX, logoOffsetY);
 
     const leftMargin = 60;
     const maxTextW = W - leftMargin * 2 - 40;
@@ -1215,7 +1229,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.translate(0, (1 - reveal) * 26);
 
     ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 60, logoScale);
+    drawLogoTopLeft(ctx, logo, 60, logoScale, logoOffsetX, logoOffsetY);
 
     const leftMargin = 60;
     const maxTextW = W - leftMargin * 2 - 40;
@@ -1348,7 +1362,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.globalAlpha = reveal;
     ctx.translate(0, (1 - reveal) * 26);
 
-    drawLogoTopLeft(ctx, logo, 50, logoScale);
+    drawLogoTopLeft(ctx, logo, 50, logoScale, logoOffsetX, logoOffsetY);
 
     const leftMargin = 70;
     const maxW = W - leftMargin * 2;
@@ -1411,7 +1425,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.translate(0, (1 - reveal) * 26);
 
     ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 60, logoScale);
+    drawLogoTopLeft(ctx, logo, 60, logoScale, logoOffsetX, logoOffsetY);
 
     const leftMargin = 60;
     const maxW = W - leftMargin * 2 - 40;
@@ -1463,7 +1477,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.globalAlpha = reveal;
     ctx.translate(0, (1 - reveal) * 26);
 
-    drawLogoTopLeft(ctx, logo, frameM + 14, logoScale);
+    drawLogoTopLeft(ctx, logo, frameM + 14, logoScale, logoOffsetX, logoOffsetY);
 
     const leftMargin = frameM + 20;
     const maxW = W - leftMargin * 2;
@@ -1529,7 +1543,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.translate(0, (1 - reveal) * 26);
 
     ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 50, logoScale);
+    drawLogoTopLeft(ctx, logo, 50, logoScale, logoOffsetX, logoOffsetY);
 
     if (kicker) {
       ctx.font = "700 22px Montserrat, sans-serif";
@@ -1606,7 +1620,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.translate(0, (1 - reveal) * 26);
 
     ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 60, logoScale);
+    drawLogoTopLeft(ctx, logo, 60, logoScale, logoOffsetX, logoOffsetY);
 
     const leftMargin = 60;
     const maxW = W - leftMargin * 2 - 40;
@@ -1657,7 +1671,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.translate(0, (1 - reveal) * 26);
 
     ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 60, logoScale);
+    drawLogoTopLeft(ctx, logo, 60, logoScale, logoOffsetX, logoOffsetY);
 
     if (highlight) {
       const tagW = 300;
@@ -1747,7 +1761,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.translate(0, (1 - reveal) * 26);
 
     ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 60, logoScale);
+    drawLogoTopLeft(ctx, logo, 60, logoScale, logoOffsetX, logoOffsetY);
 
     const leftMargin = 60;
     const maxW = splitX - leftMargin - 40;
@@ -1826,7 +1840,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.translate(0, (1 - reveal) * 26);
 
     ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 60, logoScale);
+    drawLogoTopLeft(ctx, logo, 60, logoScale, logoOffsetX, logoOffsetY);
 
     const leftMargin = 70;
     const maxW = W - leftMargin * 2;
@@ -1900,7 +1914,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.translate(0, (1 - reveal) * 26);
 
     ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 60, logoScale);
+    drawLogoTopLeft(ctx, logo, 60, logoScale, logoOffsetX, logoOffsetY);
 
     const leftMargin = 70;
     const maxW = W - leftMargin * 2;
@@ -1965,7 +1979,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.translate(0, (1 - reveal) * 26);
 
     ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 60, logoScale);
+    drawLogoTopLeft(ctx, logo, 60, logoScale, logoOffsetX, logoOffsetY);
 
     ctx.fillStyle = "rgba(255,255,255,0.14)";
     ctx.font = "800 220px Georgia, serif";
@@ -2194,7 +2208,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     if (logo) {
       const w = 680 * logoScale;
       const h = (logo.height / logo.width) * w;
-      ctx.drawImage(logo, (W - w) / 2, H - h - 80, w, h);
+      ctx.drawImage(logo, (W - w) / 2 + logoOffsetX, H - h - 80 + logoOffsetY, w, h);
     }
     ctx.restore();
     return;
@@ -2202,7 +2216,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
   if (template === "diferencial") {
     ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 70, logoScale);
+    drawLogoTopLeft(ctx, logo, 70, logoScale, logoOffsetX, logoOffsetY);
 
     ctx.fillStyle = COLORS.lime;
     ctx.font = "800 34px Montserrat, sans-serif";
@@ -2237,7 +2251,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     if (logo) {
       const w = 760 * logoScale;
       const h = (logo.height / logo.width) * w;
-      ctx.drawImage(logo, (W - w) / 2, H * 0.22, w, h);
+      ctx.drawImage(logo, (W - w) / 2 + logoOffsetX, H * 0.22 + logoOffsetY, w, h);
     }
 
     ctx.fillStyle = "#ffffff";
@@ -2328,7 +2342,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     const logoH = logo ? (logo.height / logo.width) * logoW : 0;
     const logoY = H - bottomH + 44;
     if (logo) {
-      ctx.drawImage(logo, (W - logoW) / 2, logoY, logoW, logoH);
+      ctx.drawImage(logo, (W - logoW) / 2 + logoOffsetX, logoY + logoOffsetY, logoW, logoH);
     }
 
     // lista de itens com check, centralizada
@@ -2371,7 +2385,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     if (logo) {
       const w = 560 * logoScale;
       const h = (logo.height / logo.width) * w;
-      ctx.drawImage(logo, (W - w) / 2, H * 0.05, w, h);
+      ctx.drawImage(logo, (W - w) / 2 + logoOffsetX, H * 0.05 + logoOffsetY, w, h);
     }
 
     ctx.fillStyle = "#ffffff";
@@ -2439,7 +2453,17 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.save();
     ctx.globalAlpha = reveal;
     ctx.translate(0, (1 - reveal) * 26);
-    drawWhatsappFotoOverlay(ctx, { h: H, logo, title, qrCode, contactPhone, contactInstagram, logoScale });
+    drawWhatsappFotoOverlay(ctx, {
+      h: H,
+      logo,
+      title,
+      qrCode,
+      contactPhone,
+      contactInstagram,
+      logoScale,
+      logoOffsetX,
+      logoOffsetY,
+    });
     ctx.restore();
     return;
   }
@@ -2471,7 +2495,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
   ctx.translate(0, (1 - reveal) * 26);
 
   ctx.textAlign = "left";
-  drawLogoTopLeft(ctx, logo, 70, logoScale);
+  drawLogoTopLeft(ctx, logo, 70, logoScale, logoOffsetX, logoOffsetY);
 
   if (template === "promocao" && price) {
     ctx.font = "800 46px Montserrat, sans-serif";

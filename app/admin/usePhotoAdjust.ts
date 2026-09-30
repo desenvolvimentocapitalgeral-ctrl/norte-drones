@@ -91,3 +91,65 @@ export function usePhotoAdjust() {
     zoomOut,
   };
 }
+
+/**
+ * Estado de posição manual da logo — deslocamento livre em pixels do
+ * canvas (1080 de largura), a partir da posição padrão de cada modelo.
+ * Ao contrário da foto (que é sempre recortada por trás de um "enquadre"
+ * fixo), a logo pode ir pra qualquer lugar da tela, inclusive saindo
+ * dela — por isso aqui não tem limite de -1 a 1, é pixel livre mesmo.
+ */
+export function useLogoAdjust(canvasWidth: number) {
+  const [x, setX] = useState(0);
+  const [y, setY] = useState(0);
+  const dragRef = useRef<{
+    startClientX: number;
+    startClientY: number;
+    startX: number;
+    startY: number;
+    scaleFactor: number;
+  } | null>(null);
+
+  const reset = useCallback(() => {
+    setX(0);
+    setY(0);
+  }, []);
+
+  const onDragStart = useCallback(
+    (e: React.PointerEvent<HTMLElement>) => {
+      const el = e.currentTarget;
+      el.setPointerCapture(e.pointerId);
+      const rect = el.getBoundingClientRect();
+      dragRef.current = {
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        startX: x,
+        startY: y,
+        // a prévia é exibida menor (ou maior) que o canvas real —
+        // converte pixels da tela pra pixels do canvas (1080 de largura).
+        scaleFactor: canvasWidth / (rect.width || 1),
+      };
+    },
+    [x, y, canvasWidth]
+  );
+
+  const onDragMove = useCallback((e: React.PointerEvent<HTMLElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const dx = (e.clientX - drag.startClientX) * drag.scaleFactor;
+    const dy = (e.clientY - drag.startClientY) * drag.scaleFactor;
+    setX(drag.startX + dx);
+    setY(drag.startY + dy);
+  }, []);
+
+  const onDragEnd = useCallback((e: React.PointerEvent<HTMLElement>) => {
+    dragRef.current = null;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      // já pode ter sido liberado
+    }
+  }, []);
+
+  return { x, y, setX, setY, reset, onDragStart, onDragMove, onDragEnd };
+}
