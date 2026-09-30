@@ -21,7 +21,7 @@ import {
 } from "./postCanvas";
 import { PhotoPicker, resolvePhotoSrc, type PhotoSource } from "./PhotoPicker";
 import { shareOrDownloadFile } from "./shareFile";
-import { usePhotoAdjust } from "./usePhotoAdjust";
+import { usePhotoAdjust, useLogoAdjust } from "./usePhotoAdjust";
 
 const DURATION_S = 5.5;
 // Limite de segurança bem alto (não é um limite "prático") — só pra
@@ -142,7 +142,9 @@ export function VideoGenerator({
   const [error, setError] = useState<string | null>(null);
   const [logoScale, setLogoScale] = useState(1);
   const [fontScale, setFontScale] = useState(1);
+  const [dragTarget, setDragTarget] = useState<"photo" | "logo">("photo");
   const photoAdjust = usePhotoAdjust();
+  const logoAdjust = useLogoAdjust(W);
 
   const activeTemplate = TEMPLATES.find((t) => t.key === template)!;
   const activeFormat = FORMATS.find((f) => f.key === format)!;
@@ -230,6 +232,8 @@ export function VideoGenerator({
           photoScale: photoAdjust.scale,
           logoScale,
           fontScale,
+          logoOffsetX: logoAdjust.x,
+          logoOffsetY: logoAdjust.y,
         });
       } catch {
         if (!cancelled) {
@@ -271,6 +275,8 @@ export function VideoGenerator({
     photoAdjust.scale,
     logoScale,
     fontScale,
+    logoAdjust.x,
+    logoAdjust.y,
   ]);
 
   async function handleRecord() {
@@ -406,6 +412,8 @@ export function VideoGenerator({
           contactInstagram: contacts.instagramHandle,
           logoScale,
           fontScale,
+          logoOffsetX: logoAdjust.x,
+          logoOffsetY: logoAdjust.y,
         });
       }
 
@@ -471,6 +479,8 @@ export function VideoGenerator({
                 photoScale: photoAdjust.scale,
                 logoScale,
                 fontScale,
+                logoOffsetX: logoAdjust.x,
+                logoOffsetY: logoAdjust.y,
               });
             }
 
@@ -523,25 +533,47 @@ export function VideoGenerator({
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
       <div className="relative flex flex-col items-center rounded-2xl bg-white p-6 shadow-card ring-1 ring-black/5">
-        <canvas
-          ref={canvasRef}
-          width={W}
-          height={activeFormat.height}
-          onPointerDown={
-            activeTemplate.needsPhoto && !recording ? photoAdjust.onDragStart : undefined
-          }
-          onPointerMove={
-            activeTemplate.needsPhoto && !recording ? photoAdjust.onDragMove : undefined
-          }
-          onPointerUp={activeTemplate.needsPhoto && !recording ? photoAdjust.onDragEnd : undefined}
-          onPointerCancel={
-            activeTemplate.needsPhoto && !recording ? photoAdjust.onDragEnd : undefined
-          }
-          className={`h-auto touch-none rounded-xl bg-black ring-1 ring-black/10 ${
-            activeTemplate.needsPhoto && !recording ? "cursor-move" : ""
-          } ${format === "story" ? "w-full max-w-[260px]" : "w-full max-w-[420px]"}`}
-        />
+        {(() => {
+          const target = activeTemplate.needsPhoto ? dragTarget : "logo";
+          const adjust = target === "logo" ? logoAdjust : photoAdjust;
+          return (
+            <canvas
+              ref={canvasRef}
+              width={W}
+              height={activeFormat.height}
+              onPointerDown={recording ? undefined : adjust.onDragStart}
+              onPointerMove={recording ? undefined : adjust.onDragMove}
+              onPointerUp={recording ? undefined : adjust.onDragEnd}
+              onPointerCancel={recording ? undefined : adjust.onDragEnd}
+              className={`h-auto touch-none rounded-xl bg-black ring-1 ring-black/10 ${
+                recording ? "" : "cursor-move"
+              } ${format === "story" ? "w-full max-w-[260px]" : "w-full max-w-[420px]"}`}
+            />
+          );
+        })()}
         {activeTemplate.needsPhoto && !recording && (
+          <div className="mt-3 flex items-center gap-1 rounded-full bg-black/5 p-1 text-xs font-medium">
+            <button
+              type="button"
+              onClick={() => setDragTarget("photo")}
+              className={`rounded-full px-3 py-1 transition ${
+                dragTarget === "photo" ? "bg-white text-nd-green-dark shadow-sm" : "text-nd-graphite/60"
+              }`}
+            >
+              Mover foto
+            </button>
+            <button
+              type="button"
+              onClick={() => setDragTarget("logo")}
+              className={`rounded-full px-3 py-1 transition ${
+                dragTarget === "logo" ? "bg-white text-nd-green-dark shadow-sm" : "text-nd-graphite/60"
+              }`}
+            >
+              Mover logo
+            </button>
+          </div>
+        )}
+        {activeTemplate.needsPhoto && !recording && dragTarget === "photo" && (
           <div className="mt-3 flex items-center gap-2">
             <button
               type="button"
@@ -567,6 +599,18 @@ export function VideoGenerator({
               Centralizar
             </button>
             <span className="text-xs text-nd-graphite/50">Arraste a imagem pra ajustar</span>
+          </div>
+        )}
+        {!recording && (!activeTemplate.needsPhoto || dragTarget === "logo") && (
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={logoAdjust.reset}
+              className="rounded-full bg-black/5 px-3 py-1 text-xs font-medium text-nd-graphite hover:bg-black/10"
+            >
+              Centralizar logo
+            </button>
+            <span className="text-xs text-nd-graphite/50">Arraste a imagem pra mover a logo</span>
           </div>
         )}
         {!recording && (
