@@ -13,6 +13,8 @@ import {
   loadQrCode,
   buildWhatsAppLinkClient,
   draw,
+  drawCover,
+  drawWhatsappFotoOverlay,
   type TemplateKey,
   type FormatKey,
   type MediaSource,
@@ -361,6 +363,29 @@ export function VideoGenerator({
       const FRAME_INTERVAL_S = 1 / 30;
       let lastDrawT = -Infinity;
 
+      // No modelo "WhatsApp (com foto)", tudo além da foto (véu, logo,
+      // selo, cartão, QR, contato) não muda quadro a quadro — só a foto
+      // (ou o vídeo enviado) muda. Desenhar esse tanto de camada em cima
+      // de um vídeo enviado (que já exige decodificar um frame novo a
+      // cada quadro) deixava o navegador sem fôlego, e a gravação saía
+      // com pedaço da tela preto/quadro incompleto. Por isso desenhamos
+      // essa parte fixa UMA VEZ e só colamos ela por cima a cada quadro.
+      let whatsappFotoOverlay: HTMLCanvasElement | null = null;
+      if (template === "whatsapp-foto") {
+        whatsappFotoOverlay = document.createElement("canvas");
+        whatsappFotoOverlay.width = W;
+        whatsappFotoOverlay.height = activeFormat.height;
+        const overlayCtx = whatsappFotoOverlay.getContext("2d")!;
+        drawWhatsappFotoOverlay(overlayCtx, {
+          h: activeFormat.height,
+          logo,
+          title,
+          qrCode,
+          contactPhone: contacts.phone,
+          contactInstagram: contacts.instagramHandle,
+        });
+      }
+
       await new Promise<void>((resolve) => {
         function frame(now: number) {
           const t = (now - startTime) / 1000;
@@ -376,26 +401,39 @@ export function VideoGenerator({
               (t - REVEAL_START) / (REVEAL_END - REVEAL_START);
             const reveal = easeOutCubic(revealT);
 
-            draw(offCtx, {
-              template,
-              h: activeFormat.height,
-              photo,
-              logo,
-              title,
-              subtitle,
-              price,
-              kicker,
-              highlight,
-              body,
-              badges: [badge1, badge2, badge3],
-              location,
-              signature,
-              zoom,
-              reveal,
-              qrCode,
-              contactPhone: contacts.phone,
-              contactInstagram: contacts.instagramHandle,
-            });
+            if (whatsappFotoOverlay) {
+              if (photo) {
+                drawCover(offCtx, photo, 0, 0, W, activeFormat.height, zoom);
+              } else {
+                offCtx.clearRect(0, 0, W, activeFormat.height);
+              }
+              offCtx.save();
+              offCtx.globalAlpha = reveal;
+              offCtx.translate(0, (1 - reveal) * 26);
+              offCtx.drawImage(whatsappFotoOverlay, 0, 0);
+              offCtx.restore();
+            } else {
+              draw(offCtx, {
+                template,
+                h: activeFormat.height,
+                photo,
+                logo,
+                title,
+                subtitle,
+                price,
+                kicker,
+                highlight,
+                body,
+                badges: [badge1, badge2, badge3],
+                location,
+                signature,
+                zoom,
+                reveal,
+                qrCode,
+                contactPhone: contacts.phone,
+                contactInstagram: contacts.instagramHandle,
+              });
+            }
 
             // fade from/to black at the edges
             const fadeIn = Math.max(0, 1 - t / FADE_S);

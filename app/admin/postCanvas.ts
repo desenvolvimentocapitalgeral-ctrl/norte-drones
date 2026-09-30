@@ -187,7 +187,7 @@ function wrapText(
   return lines;
 }
 
-function drawCover(
+export function drawCover(
   ctx: CanvasRenderingContext2D,
   img: MediaSource,
   x: number,
@@ -568,6 +568,113 @@ export type DrawOpts = {
   /** WhatsApp: usuário do Instagram formatado (ex.: "@nortedrones"). */
   contactInstagram?: string;
 };
+
+/**
+ * Tudo do modelo "WhatsApp (com foto)" que NÃO é a foto de fundo — véu,
+ * logo, selo, cartão, QR e contato. Nada aqui depende de zoom/tempo (só de
+ * texto/QR, que ficam fixos durante uma gravação), então dá pra desenhar
+ * uma vez só, guardar como imagem e "colar" a cada quadro em vez de
+ * refazer ~15 operações de canvas (gradientes, roundRect, texto, ícones)
+ * por quadro — o que, em cima da decodificação de um vídeo enviado como
+ * fundo, deixava esse modelo pesado o bastante pra gravação sair com
+ * quadros incompletos (parte da tela preta).
+ */
+export function drawWhatsappFotoOverlay(
+  ctx: CanvasRenderingContext2D,
+  opts: {
+    h: number;
+    logo: HTMLImageElement | null;
+    title?: string;
+    qrCode?: HTMLImageElement | null;
+    contactPhone?: string;
+    contactInstagram?: string;
+  }
+) {
+  const { h: H, logo, title = "", qrCode = null, contactPhone = "", contactInstagram = "" } = opts;
+
+  const cardMargin = 56;
+  const cardH = 224;
+  const cardY = H - cardH - 64;
+
+  const fog = ctx.createLinearGradient(0, cardY - 140, 0, H);
+  fog.addColorStop(0, "rgba(0,0,0,0)");
+  fog.addColorStop(1, "rgba(0,0,0,0.5)");
+  ctx.fillStyle = fog;
+  ctx.fillRect(0, cardY - 140, W, H - (cardY - 140));
+
+  // véu leve no topo (igual aos outros modelos com foto) — sem ele, o
+  // canto de cima do canvas fica sem nenhuma camada extra sobre a foto,
+  // e em algumas gravações de vídeo (MediaRecorder/captureStream) essa
+  // faixa sai preta em vez de mostrar a foto.
+  const topWash = ctx.createLinearGradient(0, 0, 0, 300);
+  topWash.addColorStop(0, "rgba(0,0,0,0.35)");
+  topWash.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = topWash;
+  ctx.fillRect(0, 0, W, 300);
+
+  ctx.textAlign = "left";
+  drawLogoTopLeft(ctx, logo, 56);
+
+  // selo pequeno acima do cartão, no estilo dos outros modelos
+  ctx.font = "700 24px Montserrat, sans-serif";
+  const kickerText = (title || "Fale com a gente").toUpperCase();
+  const kickerW = ctx.measureText(kickerText).width;
+  const kickerPadX = 22;
+  const kickerH = 46;
+  const kickerY = cardY - kickerH - 22;
+  ctx.fillStyle = COLORS.lime;
+  roundRect(ctx, cardMargin, kickerY, kickerW + kickerPadX * 2, kickerH, kickerH / 2);
+  ctx.fill();
+  ctx.fillStyle = COLORS.greenDark;
+  ctx.textBaseline = "middle";
+  ctx.fillText(kickerText, cardMargin + kickerPadX, kickerY + kickerH / 2 + 1);
+  ctx.textBaseline = "alphabetic";
+
+  // cartão translúcido no rodapé, estilo "cartão de visita"
+  const cardW = W - cardMargin * 2;
+  ctx.fillStyle = "rgba(11,61,46,0.82)";
+  roundRect(ctx, cardMargin, cardY, cardW, cardH, 26);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.2)";
+  ctx.lineWidth = 2;
+  roundRect(ctx, cardMargin, cardY, cardW, cardH, 26);
+  ctx.stroke();
+
+  // QR pequeno, só um reforço no canto direito do cartão — não é mais
+  // o protagonista da arte, o telefone/Instagram é que chamam atenção.
+  const qrSize = 168;
+  const qrPad = 16;
+  const qrBoxX = cardMargin + cardW - qrSize - 32;
+  const qrBoxY = cardY + (cardH - qrSize) / 2;
+  ctx.fillStyle = "#ffffff";
+  roundRect(ctx, qrBoxX - qrPad, qrBoxY - qrPad, qrSize + qrPad * 2, qrSize + qrPad * 2, 18);
+  ctx.fill();
+  if (qrCode) {
+    ctx.drawImage(qrCode, qrBoxX, qrBoxY, qrSize, qrSize);
+  }
+
+  // telefone e Instagram, à esquerda do cartão
+  const contentX = cardMargin + 34;
+  const hasBoth = Boolean(contactPhone) && Boolean(contactInstagram);
+  let rowY = cardY + cardH / 2 - (hasBoth ? 32 : 0);
+
+  if (contactPhone) {
+    const iconR = 27;
+    drawWhatsAppIcon(ctx, contentX + iconR, rowY, iconR);
+    ctx.font = "800 34px Montserrat, sans-serif";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(contactPhone, contentX + iconR * 2 + 16, rowY + 12);
+    rowY += 66;
+  }
+
+  if (contactInstagram) {
+    const iconR = 24;
+    drawInstagramIcon(ctx, contentX + iconR, rowY, iconR);
+    ctx.font = "700 29px Montserrat, sans-serif";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(contactInstagram, contentX + iconR * 2 + 14, rowY + 10);
+  }
+}
 
 export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
   const {
@@ -2160,93 +2267,10 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.fillRect(0, 0, W, H);
     }
 
-    const cardMargin = 56;
-    const cardH = 224;
-    const cardY = H - cardH - 64;
-
-    const fog = ctx.createLinearGradient(0, cardY - 140, 0, H);
-    fog.addColorStop(0, "rgba(0,0,0,0)");
-    fog.addColorStop(1, "rgba(0,0,0,0.5)");
-    ctx.fillStyle = fog;
-    ctx.fillRect(0, cardY - 140, W, H - (cardY - 140));
-
-    // véu leve no topo (igual aos outros modelos com foto) — sem ele, o
-    // canto de cima do canvas fica sem nenhuma camada extra sobre a foto,
-    // e em algumas gravações de vídeo (MediaRecorder/captureStream) essa
-    // faixa sai preta em vez de mostrar a foto.
-    const topWash = ctx.createLinearGradient(0, 0, 0, 300);
-    topWash.addColorStop(0, "rgba(0,0,0,0.35)");
-    topWash.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = topWash;
-    ctx.fillRect(0, 0, W, 300);
-
     ctx.save();
     ctx.globalAlpha = reveal;
     ctx.translate(0, (1 - reveal) * 26);
-
-    ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 56);
-
-    // selo pequeno acima do cartão, no estilo dos outros modelos
-    ctx.font = "700 24px Montserrat, sans-serif";
-    const kickerText = (title || "Fale com a gente").toUpperCase();
-    const kickerW = ctx.measureText(kickerText).width;
-    const kickerPadX = 22;
-    const kickerH = 46;
-    const kickerY = cardY - kickerH - 22;
-    ctx.fillStyle = COLORS.lime;
-    roundRect(ctx, cardMargin, kickerY, kickerW + kickerPadX * 2, kickerH, kickerH / 2);
-    ctx.fill();
-    ctx.fillStyle = COLORS.greenDark;
-    ctx.textBaseline = "middle";
-    ctx.fillText(kickerText, cardMargin + kickerPadX, kickerY + kickerH / 2 + 1);
-    ctx.textBaseline = "alphabetic";
-
-    // cartão translúcido no rodapé, estilo "cartão de visita"
-    const cardW = W - cardMargin * 2;
-    ctx.fillStyle = "rgba(11,61,46,0.82)";
-    roundRect(ctx, cardMargin, cardY, cardW, cardH, 26);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.2)";
-    ctx.lineWidth = 2;
-    roundRect(ctx, cardMargin, cardY, cardW, cardH, 26);
-    ctx.stroke();
-
-    // QR pequeno, só um reforço no canto direito do cartão — não é mais
-    // o protagonista da arte, o telefone/Instagram é que chamam atenção.
-    const qrSize = 168;
-    const qrPad = 16;
-    const qrBoxX = cardMargin + cardW - qrSize - 32;
-    const qrBoxY = cardY + (cardH - qrSize) / 2;
-    ctx.fillStyle = "#ffffff";
-    roundRect(ctx, qrBoxX - qrPad, qrBoxY - qrPad, qrSize + qrPad * 2, qrSize + qrPad * 2, 18);
-    ctx.fill();
-    if (qrCode) {
-      ctx.drawImage(qrCode, qrBoxX, qrBoxY, qrSize, qrSize);
-    }
-
-    // telefone e Instagram, à esquerda do cartão
-    const contentX = cardMargin + 34;
-    const hasBoth = Boolean(contactPhone) && Boolean(contactInstagram);
-    let rowY = cardY + cardH / 2 - (hasBoth ? 32 : 0);
-
-    if (contactPhone) {
-      const iconR = 27;
-      drawWhatsAppIcon(ctx, contentX + iconR, rowY, iconR);
-      ctx.font = "800 34px Montserrat, sans-serif";
-      ctx.fillStyle = "#ffffff";
-      ctx.fillText(contactPhone, contentX + iconR * 2 + 16, rowY + 12);
-      rowY += 66;
-    }
-
-    if (contactInstagram) {
-      const iconR = 24;
-      drawInstagramIcon(ctx, contentX + iconR, rowY, iconR);
-      ctx.font = "700 29px Montserrat, sans-serif";
-      ctx.fillStyle = "#ffffff";
-      ctx.fillText(contactInstagram, contentX + iconR * 2 + 14, rowY + 10);
-    }
-
+    drawWhatsappFotoOverlay(ctx, { h: H, logo, title, qrCode, contactPhone, contactInstagram });
     ctx.restore();
     return;
   }
