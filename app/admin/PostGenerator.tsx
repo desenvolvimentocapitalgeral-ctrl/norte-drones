@@ -226,7 +226,7 @@ export function PostGenerator({
               <span className="text-xs text-nd-graphite/60">Logo</span>
               <button
                 type="button"
-                onClick={() => setLogoScale((s) => Math.max(0.6, +(s - 0.1).toFixed(2)))}
+                onClick={() => setLogoScale((s) => Math.max(0.3, +(s - 0.2).toFixed(2)))}
                 className="h-7 w-7 rounded-full bg-black/5 text-sm font-bold text-nd-graphite hover:bg-black/10"
                 aria-label="Diminuir tamanho da logo"
               >
@@ -234,7 +234,7 @@ export function PostGenerator({
               </button>
               <button
                 type="button"
-                onClick={() => setLogoScale((s) => Math.min(1.8, +(s + 0.1).toFixed(2)))}
+                onClick={() => setLogoScale((s) => Math.min(10, +(s + 0.2).toFixed(2)))}
                 className="h-7 w-7 rounded-full bg-black/5 text-sm font-bold text-nd-graphite hover:bg-black/10"
                 aria-label="Aumentar tamanho da logo"
               >
