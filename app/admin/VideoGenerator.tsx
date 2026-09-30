@@ -21,6 +21,7 @@ import {
 } from "./postCanvas";
 import { PhotoPicker, resolvePhotoSrc, type PhotoSource } from "./PhotoPicker";
 import { shareOrDownloadFile } from "./shareFile";
+import { usePhotoAdjust } from "./usePhotoAdjust";
 
 const DURATION_S = 5.5;
 // Limite de segurança bem alto (não é um limite "prático") — só pra
@@ -139,6 +140,7 @@ export function VideoGenerator({
   const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
   const [videoExt, setVideoExt] = useState<string>("webm");
   const [error, setError] = useState<string | null>(null);
+  const photoAdjust = usePhotoAdjust();
 
   const activeTemplate = TEMPLATES.find((t) => t.key === template)!;
   const activeFormat = FORMATS.find((f) => f.key === format)!;
@@ -163,6 +165,13 @@ export function VideoGenerator({
     setVideoObjectUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [videoFile]);
+
+  // volta a foto/vídeo pro centro/sem zoom sempre que a origem muda — um
+  // enquadramento manual feito numa foto não faz sentido pra outra.
+  useEffect(() => {
+    photoAdjust.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photoChoice, uploadedPhoto, aiPhoto, videoObjectUrl]);
 
   // Static preview (settled frame) whenever not recording.
   useEffect(() => {
@@ -214,6 +223,9 @@ export function VideoGenerator({
           qrCode,
           contactPhone: contacts.phone,
           contactInstagram: contacts.instagramHandle,
+          photoOffsetX: photoAdjust.offsetX,
+          photoOffsetY: photoAdjust.offsetY,
+          photoScale: photoAdjust.scale,
         });
       } catch {
         if (!cancelled) {
@@ -250,6 +262,9 @@ export function VideoGenerator({
     siteImages,
     contacts,
     activeTemplate.needsPhoto,
+    photoAdjust.offsetX,
+    photoAdjust.offsetY,
+    photoAdjust.scale,
   ]);
 
   async function handleRecord() {
@@ -403,7 +418,18 @@ export function VideoGenerator({
 
             if (whatsappFotoOverlay) {
               if (photo) {
-                drawCover(offCtx, photo, 0, 0, W, activeFormat.height, zoom);
+                drawCover(
+                  offCtx,
+                  photo,
+                  0,
+                  0,
+                  W,
+                  activeFormat.height,
+                  zoom,
+                  photoAdjust.offsetX,
+                  photoAdjust.offsetY,
+                  photoAdjust.scale
+                );
               } else {
                 offCtx.clearRect(0, 0, W, activeFormat.height);
               }
@@ -432,6 +458,9 @@ export function VideoGenerator({
                 qrCode,
                 contactPhone: contacts.phone,
                 contactInstagram: contacts.instagramHandle,
+                photoOffsetX: photoAdjust.offsetX,
+                photoOffsetY: photoAdjust.offsetY,
+                photoScale: photoAdjust.scale,
               });
             }
 
@@ -488,10 +517,48 @@ export function VideoGenerator({
           ref={canvasRef}
           width={W}
           height={activeFormat.height}
-          className={`h-auto rounded-xl bg-black ring-1 ring-black/10 ${
-            format === "story" ? "w-full max-w-[260px]" : "w-full max-w-[420px]"
-          }`}
+          onPointerDown={
+            activeTemplate.needsPhoto && !recording ? photoAdjust.onDragStart : undefined
+          }
+          onPointerMove={
+            activeTemplate.needsPhoto && !recording ? photoAdjust.onDragMove : undefined
+          }
+          onPointerUp={activeTemplate.needsPhoto && !recording ? photoAdjust.onDragEnd : undefined}
+          onPointerCancel={
+            activeTemplate.needsPhoto && !recording ? photoAdjust.onDragEnd : undefined
+          }
+          className={`h-auto touch-none rounded-xl bg-black ring-1 ring-black/10 ${
+            activeTemplate.needsPhoto && !recording ? "cursor-move" : ""
+          } ${format === "story" ? "w-full max-w-[260px]" : "w-full max-w-[420px]"}`}
         />
+        {activeTemplate.needsPhoto && !recording && (
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={photoAdjust.zoomOut}
+              className="h-8 w-8 rounded-full bg-black/5 text-sm font-bold text-nd-graphite hover:bg-black/10"
+              aria-label="Diminuir zoom da foto"
+            >
+              −
+            </button>
+            <button
+              type="button"
+              onClick={photoAdjust.zoomIn}
+              className="h-8 w-8 rounded-full bg-black/5 text-sm font-bold text-nd-graphite hover:bg-black/10"
+              aria-label="Aumentar zoom da foto"
+            >
+              +
+            </button>
+            <button
+              type="button"
+              onClick={photoAdjust.reset}
+              className="rounded-full bg-black/5 px-3 py-1 text-xs font-medium text-nd-graphite hover:bg-black/10"
+            >
+              Centralizar
+            </button>
+            <span className="text-xs text-nd-graphite/50">Arraste a imagem pra ajustar</span>
+          </div>
+        )}
         {videoObjectUrl && (
           <video
             ref={sourceVideoRef}

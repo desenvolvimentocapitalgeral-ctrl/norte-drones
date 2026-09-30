@@ -25,7 +25,8 @@ export type TemplateKey =
   | "linhas"
   | "impacto"
   | "whatsapp"
-  | "whatsapp-foto";
+  | "whatsapp-foto"
+  | "agenda";
 export type FormatKey = "quadrado" | "story";
 
 export const FORMATS: { key: FormatKey; label: string; height: number }[] = [
@@ -61,6 +62,7 @@ export const TEMPLATES: {
   { key: "contato", label: "Contato", needsPhoto: false },
   { key: "whatsapp", label: "WhatsApp (com QR code)", needsPhoto: false },
   { key: "whatsapp-foto", label: "WhatsApp (com foto e QR grande)", needsPhoto: true },
+  { key: "agenda", label: "Agenda aberta (título + checklist)", needsPhoto: true },
 ];
 
 /** Modelos que usam o conjunto de campos "estilo Campanha" (linha pequena,
@@ -83,6 +85,7 @@ export const RICH_FIELD_TEMPLATES: TemplateKey[] = [
   "citacao",
   "linhas",
   "impacto",
+  "agenda",
 ];
 
 export const COLORS = {
@@ -194,7 +197,13 @@ export function drawCover(
   y: number,
   w: number,
   h: number,
-  zoom = 1
+  zoom = 1,
+  /** Pan manual do usuário, -1 (esquerda) a 1 (direita), 0 = centralizado. */
+  offsetX = 0,
+  /** Pan manual do usuário, -1 (cima) a 1 (baixo), 0 = centralizado. */
+  offsetY = 0,
+  /** Zoom manual do usuário (slider), multiplica o `zoom` da animação. */
+  userZoom = 1
 ) {
   const { width: iw, height: ih } = mediaSize(img);
   if (!iw || !ih) return;
@@ -212,13 +221,25 @@ export function drawCover(
     sx = 0;
     sy = (ih - sh) / 2;
   }
-  if (zoom > 1) {
-    const zw = sw / zoom;
-    const zh = sh / zoom;
+  const totalZoom = Math.max(1, zoom * userZoom);
+  if (totalZoom > 1) {
+    const zw = sw / totalZoom;
+    const zh = sh / totalZoom;
     sx += (sw - zw) / 2;
     sy += (sh - zh) / 2;
     sw = zw;
     sh = zh;
+  }
+  // aplica o pan manual dentro da folga que sobrou entre o recorte
+  // (sw/sh) e a imagem original (iw/ih) — offset 0 mantém centralizado,
+  // como antes.
+  const slackX = iw - sw;
+  const slackY = ih - sh;
+  if (slackX > 0) {
+    sx = Math.min(Math.max(0, sx + (offsetX * slackX) / 2), slackX);
+  }
+  if (slackY > 0) {
+    sy = Math.min(Math.max(0, sy + (offsetY * slackY) / 2), slackY);
   }
   ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
 }
@@ -549,6 +570,12 @@ export type DrawOpts = {
   zoom?: number;
   /** 0..1, how revealed the foreground (text/logo/badges) is. 1 = fully shown. */
   reveal?: number;
+  /** Pan manual do usuário sobre a foto, -1 a 1 (0 = centralizado). */
+  photoOffsetX?: number;
+  /** Pan manual do usuário sobre a foto, -1 a 1 (0 = centralizado). */
+  photoOffsetY?: number;
+  /** Zoom manual do usuário sobre a foto (slider), multiplica o `zoom` da animação. */
+  photoScale?: number;
   /** Campanha: pequena linha acima do título (ex.: "ESTÁ CHEGANDO A"). */
   kicker?: string;
   /** Campanha: segunda linha do título, em destaque (ex.: "SAFRA 26/27"). */
@@ -687,6 +714,9 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     price,
     zoom = 1,
     reveal = 1,
+    photoOffsetX = 0,
+    photoOffsetY = 0,
+    photoScale = 1,
     kicker = "",
     highlight = "",
     body = "",
@@ -701,7 +731,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
   if (template === "campanha") {
     if (photo) {
-      drawCover(ctx, photo, 0, 0, W, H, zoom);
+      drawCover(ctx, photo, 0, 0, W, H, zoom, photoOffsetX, photoOffsetY, photoScale);
     } else {
       ctx.fillStyle = COLORS.greenDark;
       ctx.fillRect(0, 0, W, H);
@@ -830,7 +860,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
   if (template === "campanha-direita") {
     if (photo) {
-      drawCover(ctx, photo, 0, 0, W, H, zoom);
+      drawCover(ctx, photo, 0, 0, W, H, zoom, photoOffsetX, photoOffsetY, photoScale);
     } else {
       ctx.fillStyle = COLORS.greenDark;
       ctx.fillRect(0, 0, W, H);
@@ -963,7 +993,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
   if (template === "moderno") {
     if (photo) {
-      drawCover(ctx, photo, 0, 0, W, H, zoom);
+      drawCover(ctx, photo, 0, 0, W, H, zoom, photoOffsetX, photoOffsetY, photoScale);
     } else {
       ctx.fillStyle = COLORS.greenDark;
       ctx.fillRect(0, 0, W, H);
@@ -1108,7 +1138,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
   if (template === "neblina") {
     if (photo) {
-      drawCover(ctx, photo, 0, 0, W, H, zoom);
+      drawCover(ctx, photo, 0, 0, W, H, zoom, photoOffsetX, photoOffsetY, photoScale);
     } else {
       ctx.fillStyle = COLORS.greenDark;
       ctx.fillRect(0, 0, W, H);
@@ -1247,7 +1277,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.beginPath();
       ctx.arc(cx, cy, cr, 0, Math.PI * 2);
       ctx.clip();
-      drawCover(ctx, photo, cx - cr, cy - cr, cr * 2, cr * 2, zoom);
+      drawCover(ctx, photo, cx - cr, cy - cr, cr * 2, cr * 2, zoom, photoOffsetX, photoOffsetY, photoScale);
       ctx.restore();
     }
     ctx.save();
@@ -1304,7 +1334,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
   if (template === "diagonal") {
     if (photo) {
-      drawCover(ctx, photo, 0, 0, W, H, zoom);
+      drawCover(ctx, photo, 0, 0, W, H, zoom, photoOffsetX, photoOffsetY, photoScale);
     } else {
       ctx.fillStyle = COLORS.greenDark;
       ctx.fillRect(0, 0, W, H);
@@ -1367,7 +1397,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.save();
       roundRect(ctx, frameM, frameM, W - frameM * 2, photoH, 18);
       ctx.clip();
-      drawCover(ctx, photo, frameM, frameM, W - frameM * 2, photoH, zoom);
+      drawCover(ctx, photo, frameM, frameM, W - frameM * 2, photoH, zoom, photoOffsetX, photoOffsetY, photoScale);
       ctx.restore();
     }
     ctx.save();
@@ -1438,7 +1468,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.save();
       roundRect(ctx, cardM, cardY, W - cardM * 2, cardH, 28);
       ctx.clip();
-      drawCover(ctx, photo, cardM, cardY, W - cardM * 2, cardH, zoom);
+      drawCover(ctx, photo, cardM, cardY, W - cardM * 2, cardH, zoom, photoOffsetX, photoOffsetY, photoScale);
       ctx.restore();
     }
 
@@ -1501,7 +1531,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
   if (template === "ondas") {
     if (photo) {
-      drawCover(ctx, photo, 0, 0, W, H, zoom);
+      drawCover(ctx, photo, 0, 0, W, H, zoom, photoOffsetX, photoOffsetY, photoScale);
     } else {
       ctx.fillStyle = COLORS.greenDark;
       ctx.fillRect(0, 0, W, H);
@@ -1558,7 +1588,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
   if (template === "etiqueta") {
     if (photo) {
-      drawCover(ctx, photo, 0, 0, W, H, zoom);
+      drawCover(ctx, photo, 0, 0, W, H, zoom, photoOffsetX, photoOffsetY, photoScale);
     } else {
       ctx.fillStyle = COLORS.greenDark;
       ctx.fillRect(0, 0, W, H);
@@ -1632,7 +1662,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
   if (template === "hexagonos") {
     if (photo) {
-      drawCover(ctx, photo, 0, 0, W, H, zoom);
+      drawCover(ctx, photo, 0, 0, W, H, zoom, photoOffsetX, photoOffsetY, photoScale);
     } else {
       ctx.fillStyle = COLORS.greenDark;
       ctx.fillRect(0, 0, W, H);
@@ -2196,6 +2226,93 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     return;
   }
 
+  if (template === "agenda") {
+    // estilo "cartaz de divulgação": título grande no topo, foto em
+    // destaque no meio, logo + lista de itens com check + telefone embaixo.
+    if (photo) {
+      drawCover(ctx, photo, 0, 0, W, H, zoom, photoOffsetX, photoOffsetY, photoScale);
+    } else {
+      ctx.fillStyle = COLORS.greenDark;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    const topH = H * 0.34;
+    const topOverlay = ctx.createLinearGradient(0, 0, 0, topH);
+    topOverlay.addColorStop(0, "rgba(11,61,46,0.85)");
+    topOverlay.addColorStop(1, "rgba(11,61,46,0)");
+    ctx.fillStyle = topOverlay;
+    ctx.fillRect(0, 0, W, topH);
+
+    const bottomH = H * 0.4;
+    const bottomOverlay = ctx.createLinearGradient(0, H - bottomH, 0, H);
+    bottomOverlay.addColorStop(0, "rgba(11,61,46,0)");
+    bottomOverlay.addColorStop(0.22, "rgba(11,61,46,0.9)");
+    bottomOverlay.addColorStop(1, "rgba(11,61,46,0.97)");
+    ctx.fillStyle = bottomOverlay;
+    ctx.fillRect(0, H - bottomH, W, bottomH);
+
+    ctx.save();
+    ctx.globalAlpha = reveal;
+    ctx.translate(0, (1 - reveal) * 26);
+
+    // título grande, centralizado no topo
+    ctx.textAlign = "center";
+    ctx.shadowColor = "rgba(0,0,0,0.5)";
+    ctx.shadowBlur = 20;
+    ctx.font = "800 76px Montserrat, sans-serif";
+    ctx.fillStyle = "#ffffff";
+    const maxTitleW = W - 100;
+    const titleLines = wrapText(ctx, (title || "Agenda aberta").toUpperCase(), maxTitleW);
+    let titleY = 96;
+    titleLines.forEach((line) => {
+      ctx.fillText(line, W / 2, titleY);
+      titleY += 84;
+    });
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
+
+    // logo + nome, centralizados, logo acima da faixa de baixo
+    const logoW = 230;
+    const logoH = logo ? (logo.height / logo.width) * logoW : 0;
+    const logoY = H - bottomH + 44;
+    if (logo) {
+      ctx.drawImage(logo, (W - logoW) / 2, logoY, logoW, logoH);
+    }
+
+    // lista de itens com check, centralizada
+    const activeItems = badges.filter(Boolean).slice(0, 4);
+    let listY = logoY + logoH + 54;
+    ctx.font = "700 32px Montserrat, sans-serif";
+    activeItems.forEach((item) => {
+      const label = item;
+      ctx.font = "800 32px Montserrat, sans-serif";
+      const checkW = ctx.measureText("✓ ").width;
+      ctx.font = "700 32px Montserrat, sans-serif";
+      const labelW = ctx.measureText(label).width;
+      const totalW = checkW + labelW;
+      const startX = W / 2 - totalW / 2;
+      ctx.textAlign = "left";
+      ctx.font = "800 32px Montserrat, sans-serif";
+      ctx.fillStyle = COLORS.lime;
+      ctx.fillText("✓ ", startX, listY);
+      ctx.font = "700 32px Montserrat, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(label, startX + checkW, listY);
+      ctx.textAlign = "center";
+      listY += 46;
+    });
+
+    // telefone, logo abaixo da lista, em destaque
+    if (contactPhone) {
+      ctx.font = "800 46px Montserrat, sans-serif";
+      ctx.fillStyle = COLORS.lime;
+      ctx.fillText(contactPhone, W / 2, Math.min(listY + 40, H - 44));
+    }
+
+    ctx.restore();
+    return;
+  }
+
   if (template === "whatsapp") {
     ctx.textAlign = "center";
 
@@ -2261,7 +2378,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     // a foto fica praticamente inteira à mostra — só um véu leve embaixo,
     // atrás do cartão de contato, pra foto ser o destaque do post.
     if (photo) {
-      drawCover(ctx, photo, 0, 0, W, H, zoom);
+      drawCover(ctx, photo, 0, 0, W, H, zoom, photoOffsetX, photoOffsetY, photoScale);
     } else {
       ctx.fillStyle = COLORS.greenDark;
       ctx.fillRect(0, 0, W, H);
@@ -2279,7 +2396,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
   // servico / promocao: photo (or solid) background + bottom gradient + text
   if (photo) {
-    drawCover(ctx, photo, 0, 0, W, H, zoom);
+    drawCover(ctx, photo, 0, 0, W, H, zoom, photoOffsetX, photoOffsetY, photoScale);
   } else {
     ctx.fillStyle = COLORS.greenDark;
     ctx.fillRect(0, 0, W, H);
