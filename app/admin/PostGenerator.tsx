@@ -51,9 +51,13 @@ export function PostGenerator({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [logoScale, setLogoScale] = useState(1);
   const [fontScale, setFontScale] = useState(1);
-  const [dragTarget, setDragTarget] = useState<"photo" | "logo">("photo");
+  const [postPhone, setPostPhone] = useState("");
+  const [postAttendantName, setPostAttendantName] = useState("");
+  const [contactCardQrCode, setContactCardQrCode] = useState<HTMLImageElement | null>(null);
+  const [dragTarget, setDragTarget] = useState<"photo" | "logo" | "card">("photo");
   const photoAdjust = usePhotoAdjust();
   const logoAdjust = useLogoAdjust(W);
+  const cardAdjust = useLogoAdjust(W);
 
   const activeTemplate = TEMPLATES.find((t) => t.key === template)!;
   const activeFormat = FORMATS.find((f) => f.key === format)!;
@@ -64,6 +68,23 @@ export function PostGenerator({
     photoAdjust.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [photoChoice, uploadedPhoto, aiPhoto]);
+
+  // gera o QR code deste post sempre que o telefone (desse post, não o de
+  // Contatos) muda — some se o campo for apagado.
+  useEffect(() => {
+    let cancelled = false;
+    const link = buildWhatsAppLinkClient(postPhone, "");
+    if (!link) {
+      setContactCardQrCode(null);
+      return;
+    }
+    loadQrCode(link).then((img) => {
+      if (!cancelled) setContactCardQrCode(img);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [postPhone]);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,6 +144,11 @@ export function PostGenerator({
           fontScale,
           logoOffsetX: logoAdjust.x,
           logoOffsetY: logoAdjust.y,
+          contactCardPhone: postPhone,
+          contactCardName: postAttendantName,
+          contactCardQrCode,
+          contactCardOffsetX: cardAdjust.x,
+          contactCardOffsetY: cardAdjust.y,
         });
         if (!cancelled) setPreviewUrl(canvas.toDataURL("image/png"));
       } catch (err) {
@@ -168,6 +194,11 @@ export function PostGenerator({
     fontScale,
     logoAdjust.x,
     logoAdjust.y,
+    postPhone,
+    postAttendantName,
+    contactCardQrCode,
+    cardAdjust.x,
+    cardAdjust.y,
   ]);
 
   function handleDownload() {
@@ -185,8 +216,14 @@ export function PostGenerator({
       <div className="flex flex-col items-center rounded-2xl bg-white p-6 shadow-card ring-1 ring-black/5">
         <canvas ref={canvasRef} width={W} height={activeFormat.height} className="hidden" />
         {previewUrl && (() => {
-          const target = activeTemplate.needsPhoto ? dragTarget : "logo";
-          const adjust = target === "logo" ? logoAdjust : photoAdjust;
+          const hasCard = Boolean(postPhone);
+          const target =
+            dragTarget === "photo" && !activeTemplate.needsPhoto
+              ? "logo"
+              : dragTarget === "card" && !hasCard
+              ? "logo"
+              : dragTarget;
+          const adjust = target === "logo" ? logoAdjust : target === "card" ? cardAdjust : photoAdjust;
           return (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -202,17 +239,19 @@ export function PostGenerator({
             />
           );
         })()}
-        {activeTemplate.needsPhoto && previewUrl && (
+        {previewUrl && (activeTemplate.needsPhoto || postPhone) && (
           <div className="mt-3 flex items-center gap-1 rounded-full bg-black/5 p-1 text-xs font-medium">
-            <button
-              type="button"
-              onClick={() => setDragTarget("photo")}
-              className={`rounded-full px-3 py-1 transition ${
-                dragTarget === "photo" ? "bg-white text-nd-green-dark shadow-sm" : "text-nd-graphite/60"
-              }`}
-            >
-              Mover foto
-            </button>
+            {activeTemplate.needsPhoto && (
+              <button
+                type="button"
+                onClick={() => setDragTarget("photo")}
+                className={`rounded-full px-3 py-1 transition ${
+                  dragTarget === "photo" ? "bg-white text-nd-green-dark shadow-sm" : "text-nd-graphite/60"
+                }`}
+              >
+                Mover foto
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setDragTarget("logo")}
@@ -222,6 +261,17 @@ export function PostGenerator({
             >
               Mover logo
             </button>
+            {postPhone && (
+              <button
+                type="button"
+                onClick={() => setDragTarget("card")}
+                className={`rounded-full px-3 py-1 transition ${
+                  dragTarget === "card" ? "bg-white text-nd-green-dark shadow-sm" : "text-nd-graphite/60"
+                }`}
+              >
+                Mover contato
+              </button>
+            )}
           </div>
         )}
         {activeTemplate.needsPhoto && previewUrl && dragTarget === "photo" && (
@@ -252,7 +302,7 @@ export function PostGenerator({
             <span className="text-xs text-nd-graphite/50">Arraste a imagem pra ajustar</span>
           </div>
         )}
-        {previewUrl && (!activeTemplate.needsPhoto || dragTarget === "logo") && (
+        {previewUrl && dragTarget === "logo" && (
           <div className="mt-3 flex items-center gap-2">
             <button
               type="button"
@@ -262,6 +312,18 @@ export function PostGenerator({
               Centralizar logo
             </button>
             <span className="text-xs text-nd-graphite/50">Arraste a imagem pra mover a logo</span>
+          </div>
+        )}
+        {postPhone && previewUrl && dragTarget === "card" && (
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={cardAdjust.reset}
+              className="rounded-full bg-black/5 px-3 py-1 text-xs font-medium text-nd-graphite hover:bg-black/10"
+            >
+              Centralizar contato
+            </button>
+            <span className="text-xs text-nd-graphite/50">Arraste a imagem pra mover o cartão de contato</span>
           </div>
         )}
         {previewUrl && (
@@ -377,6 +439,34 @@ export function PostGenerator({
           </div>
         </div>
 
+        <div className="rounded-xl bg-black/[0.03] p-4">
+          <p className="mb-2 text-sm font-medium text-nd-graphite">
+            Contato neste post <span className="font-normal text-nd-graphite/50">(opcional)</span>
+          </p>
+          <div className="space-y-3">
+            <Field
+              label="Telefone (WhatsApp)"
+              value={postPhone}
+              onChange={setPostPhone}
+              placeholder="(63) 99999-9999"
+            />
+            {postPhone && (
+              <Field
+                label="Nome de quem atende"
+                value={postAttendantName}
+                onChange={setPostAttendantName}
+                placeholder="Ex.: João"
+              />
+            )}
+          </div>
+          <p className="mt-2 text-xs leading-relaxed text-nd-graphite/50">
+            Preenchendo o telefone, aparece um cartãozinho com ícone do
+            WhatsApp, o número e um QR Code que aponta direto pra esse
+            número — independente do telefone cadastrado em Contatos. Deixe
+            em branco pra não aparecer nada.
+          </p>
+        </div>
+
         {activeTemplate.needsPhoto && (
           <PhotoPicker
             source={photoChoice}
@@ -438,11 +528,13 @@ function Field({
   value,
   onChange,
   textarea = false,
+  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   textarea?: boolean;
+  placeholder?: string;
 }) {
   return (
     <label className="block text-sm font-medium text-nd-graphite">
@@ -452,6 +544,7 @@ function Field({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           rows={3}
+          placeholder={placeholder}
           className="mt-1 w-full rounded-lg border border-black/10 px-3 py-2 text-sm outline-none focus:border-nd-green focus:ring-1 focus:ring-nd-green"
         />
       ) : (
@@ -459,6 +552,7 @@ function Field({
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
           className="mt-1 w-full rounded-lg border border-black/10 px-3 py-2 text-sm outline-none focus:border-nd-green focus:ring-1 focus:ring-nd-green"
         />
       )}

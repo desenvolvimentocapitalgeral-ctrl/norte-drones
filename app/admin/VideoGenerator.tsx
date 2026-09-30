@@ -15,6 +15,7 @@ import {
   draw,
   drawCover,
   drawWhatsappFotoOverlay,
+  drawContactCard,
   type TemplateKey,
   type FormatKey,
   type MediaSource,
@@ -142,9 +143,13 @@ export function VideoGenerator({
   const [error, setError] = useState<string | null>(null);
   const [logoScale, setLogoScale] = useState(1);
   const [fontScale, setFontScale] = useState(1);
-  const [dragTarget, setDragTarget] = useState<"photo" | "logo">("photo");
+  const [postPhone, setPostPhone] = useState("");
+  const [postAttendantName, setPostAttendantName] = useState("");
+  const [contactCardQrCode, setContactCardQrCode] = useState<HTMLImageElement | null>(null);
+  const [dragTarget, setDragTarget] = useState<"photo" | "logo" | "card">("photo");
   const photoAdjust = usePhotoAdjust();
   const logoAdjust = useLogoAdjust(W);
+  const cardAdjust = useLogoAdjust(W);
 
   const activeTemplate = TEMPLATES.find((t) => t.key === template)!;
   const activeFormat = FORMATS.find((f) => f.key === format)!;
@@ -176,6 +181,23 @@ export function VideoGenerator({
     photoAdjust.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [photoChoice, uploadedPhoto, aiPhoto, videoObjectUrl]);
+
+  // gera o QR code deste post sempre que o telefone (desse post, não o de
+  // Contatos) muda — some se o campo for apagado.
+  useEffect(() => {
+    let cancelled = false;
+    const link = buildWhatsAppLinkClient(postPhone, "");
+    if (!link) {
+      setContactCardQrCode(null);
+      return;
+    }
+    loadQrCode(link).then((img) => {
+      if (!cancelled) setContactCardQrCode(img);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [postPhone]);
 
   // Static preview (settled frame) whenever not recording.
   useEffect(() => {
@@ -234,6 +256,11 @@ export function VideoGenerator({
           fontScale,
           logoOffsetX: logoAdjust.x,
           logoOffsetY: logoAdjust.y,
+          contactCardPhone: postPhone,
+          contactCardName: postAttendantName,
+          contactCardQrCode,
+          contactCardOffsetX: cardAdjust.x,
+          contactCardOffsetY: cardAdjust.y,
         });
       } catch {
         if (!cancelled) {
@@ -277,6 +304,11 @@ export function VideoGenerator({
     fontScale,
     logoAdjust.x,
     logoAdjust.y,
+    postPhone,
+    postAttendantName,
+    contactCardQrCode,
+    cardAdjust.x,
+    cardAdjust.y,
   ]);
 
   async function handleRecord() {
@@ -415,6 +447,18 @@ export function VideoGenerator({
           logoOffsetX: logoAdjust.x,
           logoOffsetY: logoAdjust.y,
         });
+        // o modelo "WhatsApp (com foto)" usa esse caminho rápido (desenha
+        // uma vez, cola por cima a cada quadro) que passa ao largo de
+        // `draw()` — por isso o cartão de contato deste post precisa ser
+        // desenhado aqui também, não só dentro de `draw()`.
+        drawContactCard(overlayCtx, {
+          h: activeFormat.height,
+          phone: postPhone,
+          name: postAttendantName,
+          qrCode: contactCardQrCode,
+          offsetX: cardAdjust.x,
+          offsetY: cardAdjust.y,
+        });
       }
 
       await new Promise<void>((resolve) => {
@@ -481,6 +525,11 @@ export function VideoGenerator({
                 fontScale,
                 logoOffsetX: logoAdjust.x,
                 logoOffsetY: logoAdjust.y,
+                contactCardPhone: postPhone,
+                contactCardName: postAttendantName,
+                contactCardQrCode,
+                contactCardOffsetX: cardAdjust.x,
+                contactCardOffsetY: cardAdjust.y,
               });
             }
 
@@ -534,8 +583,14 @@ export function VideoGenerator({
     <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
       <div className="relative flex flex-col items-center rounded-2xl bg-white p-6 shadow-card ring-1 ring-black/5">
         {(() => {
-          const target = activeTemplate.needsPhoto ? dragTarget : "logo";
-          const adjust = target === "logo" ? logoAdjust : photoAdjust;
+          const hasCard = Boolean(postPhone);
+          const target =
+            dragTarget === "photo" && !activeTemplate.needsPhoto
+              ? "logo"
+              : dragTarget === "card" && !hasCard
+              ? "logo"
+              : dragTarget;
+          const adjust = target === "logo" ? logoAdjust : target === "card" ? cardAdjust : photoAdjust;
           return (
             <canvas
               ref={canvasRef}
@@ -551,17 +606,19 @@ export function VideoGenerator({
             />
           );
         })()}
-        {activeTemplate.needsPhoto && !recording && (
+        {!recording && (activeTemplate.needsPhoto || postPhone) && (
           <div className="mt-3 flex items-center gap-1 rounded-full bg-black/5 p-1 text-xs font-medium">
-            <button
-              type="button"
-              onClick={() => setDragTarget("photo")}
-              className={`rounded-full px-3 py-1 transition ${
-                dragTarget === "photo" ? "bg-white text-nd-green-dark shadow-sm" : "text-nd-graphite/60"
-              }`}
-            >
-              Mover foto
-            </button>
+            {activeTemplate.needsPhoto && (
+              <button
+                type="button"
+                onClick={() => setDragTarget("photo")}
+                className={`rounded-full px-3 py-1 transition ${
+                  dragTarget === "photo" ? "bg-white text-nd-green-dark shadow-sm" : "text-nd-graphite/60"
+                }`}
+              >
+                Mover foto
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setDragTarget("logo")}
@@ -571,6 +628,17 @@ export function VideoGenerator({
             >
               Mover logo
             </button>
+            {postPhone && (
+              <button
+                type="button"
+                onClick={() => setDragTarget("card")}
+                className={`rounded-full px-3 py-1 transition ${
+                  dragTarget === "card" ? "bg-white text-nd-green-dark shadow-sm" : "text-nd-graphite/60"
+                }`}
+              >
+                Mover contato
+              </button>
+            )}
           </div>
         )}
         {activeTemplate.needsPhoto && !recording && dragTarget === "photo" && (
@@ -601,7 +669,7 @@ export function VideoGenerator({
             <span className="text-xs text-nd-graphite/50">Arraste a imagem pra ajustar</span>
           </div>
         )}
-        {!recording && (!activeTemplate.needsPhoto || dragTarget === "logo") && (
+        {!recording && dragTarget === "logo" && (
           <div className="mt-3 flex items-center gap-2">
             <button
               type="button"
@@ -611,6 +679,18 @@ export function VideoGenerator({
               Centralizar logo
             </button>
             <span className="text-xs text-nd-graphite/50">Arraste a imagem pra mover a logo</span>
+          </div>
+        )}
+        {postPhone && !recording && dragTarget === "card" && (
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={cardAdjust.reset}
+              className="rounded-full bg-black/5 px-3 py-1 text-xs font-medium text-nd-graphite hover:bg-black/10"
+            >
+              Centralizar contato
+            </button>
+            <span className="text-xs text-nd-graphite/50">Arraste a imagem pra mover o cartão de contato</span>
           </div>
         )}
         {!recording && (
@@ -788,6 +868,36 @@ export function VideoGenerator({
           </div>
         </div>
 
+        <div className="rounded-xl bg-black/[0.03] p-4">
+          <p className="mb-2 text-sm font-medium text-nd-graphite">
+            Contato neste post <span className="font-normal text-nd-graphite/50">(opcional)</span>
+          </p>
+          <div className="space-y-3">
+            <Field
+              label="Telefone (WhatsApp)"
+              value={postPhone}
+              onChange={setPostPhone}
+              placeholder="(63) 99999-9999"
+              disabled={recording}
+            />
+            {postPhone && (
+              <Field
+                label="Nome de quem atende"
+                value={postAttendantName}
+                onChange={setPostAttendantName}
+                placeholder="Ex.: João"
+                disabled={recording}
+              />
+            )}
+          </div>
+          <p className="mt-2 text-xs leading-relaxed text-nd-graphite/50">
+            Preenchendo o telefone, aparece um cartãozinho com ícone do
+            WhatsApp, o número e um QR Code que aponta direto pra esse
+            número — independente do telefone cadastrado em Contatos. Deixe
+            em branco pra não aparecer nada.
+          </p>
+        </div>
+
         {activeTemplate.needsPhoto && (
           <PhotoPicker
             source={photoChoice}
@@ -858,12 +968,14 @@ function Field({
   onChange,
   textarea = false,
   disabled = false,
+  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   textarea?: boolean;
   disabled?: boolean;
+  placeholder?: string;
 }) {
   return (
     <label className="block text-sm font-medium text-nd-graphite">
@@ -874,6 +986,7 @@ function Field({
           disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
           rows={3}
+          placeholder={placeholder}
           className="mt-1 w-full rounded-lg border border-black/10 px-3 py-2 text-sm outline-none focus:border-nd-green focus:ring-1 focus:ring-nd-green disabled:opacity-50"
         />
       ) : (
@@ -882,6 +995,7 @@ function Field({
           value={value}
           disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
           className="mt-1 w-full rounded-lg border border-black/10 px-3 py-2 text-sm outline-none focus:border-nd-green focus:ring-1 focus:ring-nd-green disabled:opacity-50"
         />
       )}
