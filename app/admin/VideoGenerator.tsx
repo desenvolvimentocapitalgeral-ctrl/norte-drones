@@ -336,48 +336,80 @@ export function VideoGenerator({
       const startTime = performance.now();
       const c = ctx;
 
+      // Desenha cada frame num canvas fora da tela e só depois "cola" o
+      // resultado pronto no canvas que está sendo gravado (captureStream),
+      // num único drawImage. Alguns modelos fazem muitas operações de
+      // desenho por frame (foto + gradientes + cartão + QR + ícones + texto)
+      // e, sem esse buffer, o captureStream podia capturar o canvas gravado
+      // no meio dessa sequência — daí vídeos saindo com parte da tela preta.
+      const offscreen = document.createElement("canvas");
+      offscreen.width = W;
+      offscreen.height = activeFormat.height;
+      const offCtx = offscreen.getContext("2d")!;
+
+      // captureStream(30) grava a 30 quadros/segundo, mas o
+      // requestAnimationFrame do navegador dispara bem mais rápido que isso
+      // (60fps+ na maioria das telas). Desenhar (e "colar" no canvas
+      // gravado) em toda chamada de rAF gera o dobro do trabalho que a
+      // gravação realmente usa — em modelos com mais camadas de desenho
+      // (foto + gradientes + cartão + QR + ícones + texto), isso pode
+      // deixar a aba sem fôlego pra terminar um quadro antes do próximo
+      // começar, e o vídeo gravado sai com pedaços de dois quadros
+      // diferentes misturados. Por isso só desenhamos de fato no ritmo da
+      // gravação (~30fps) — o restante das chamadas de rAF só atualiza a
+      // barra de progresso.
+      const FRAME_INTERVAL_S = 1 / 30;
+      let lastDrawT = -Infinity;
+
       await new Promise<void>((resolve) => {
         function frame(now: number) {
           const t = (now - startTime) / 1000;
           const p = Math.min(1, t / clipDuration);
           setProgress(p);
 
-          const zoom = sourceVideo ? 1 : 1 + (MAX_ZOOM - 1) * p;
-          const revealT =
-            (t - REVEAL_START) / (REVEAL_END - REVEAL_START);
-          const reveal = easeOutCubic(revealT);
+          const done = t >= clipDuration;
+          if (done || t - lastDrawT >= FRAME_INTERVAL_S) {
+            lastDrawT = t;
 
-          draw(c, {
-            template,
-            h: activeFormat.height,
-            photo,
-            logo,
-            title,
-            subtitle,
-            price,
-            kicker,
-            highlight,
-            body,
-            badges: [badge1, badge2, badge3],
-            location,
-            signature,
-            zoom,
-            reveal,
-            qrCode,
-            contactPhone: contacts.phone,
-            contactInstagram: contacts.instagramHandle,
-          });
+            const zoom = sourceVideo ? 1 : 1 + (MAX_ZOOM - 1) * p;
+            const revealT =
+              (t - REVEAL_START) / (REVEAL_END - REVEAL_START);
+            const reveal = easeOutCubic(revealT);
 
-          // fade from/to black at the edges
-          const fadeIn = Math.max(0, 1 - t / FADE_S);
-          const fadeOut = Math.max(0, 1 - (clipDuration - t) / FADE_S);
-          const fade = Math.max(fadeIn, fadeOut);
-          if (fade > 0) {
-            c.fillStyle = `rgba(0,0,0,${fade})`;
-            c.fillRect(0, 0, W, activeFormat.height);
+            draw(offCtx, {
+              template,
+              h: activeFormat.height,
+              photo,
+              logo,
+              title,
+              subtitle,
+              price,
+              kicker,
+              highlight,
+              body,
+              badges: [badge1, badge2, badge3],
+              location,
+              signature,
+              zoom,
+              reveal,
+              qrCode,
+              contactPhone: contacts.phone,
+              contactInstagram: contacts.instagramHandle,
+            });
+
+            // fade from/to black at the edges
+            const fadeIn = Math.max(0, 1 - t / FADE_S);
+            const fadeOut = Math.max(0, 1 - (clipDuration - t) / FADE_S);
+            const fade = Math.max(fadeIn, fadeOut);
+            if (fade > 0) {
+              offCtx.fillStyle = `rgba(0,0,0,${fade})`;
+              offCtx.fillRect(0, 0, W, activeFormat.height);
+            }
+
+            c.drawImage(offscreen, 0, 0);
           }
 
-          if (t < clipDuration) {
+          if (!done) {
             requestAnimationFrame(frame);
           } else {
             resolve();

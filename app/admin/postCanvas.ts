@@ -2170,6 +2170,16 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.fillStyle = fog;
     ctx.fillRect(0, cardY - 140, W, H - (cardY - 140));
 
+    // véu leve no topo (igual aos outros modelos com foto) — sem ele, o
+    // canto de cima do canvas fica sem nenhuma camada extra sobre a foto,
+    // e em algumas gravações de vídeo (MediaRecorder/captureStream) essa
+    // faixa sai preta em vez de mostrar a foto.
+    const topWash = ctx.createLinearGradient(0, 0, 0, 300);
+    topWash.addColorStop(0, "rgba(0,0,0,0.35)");
+    topWash.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = topWash;
+    ctx.fillRect(0, 0, W, 300);
+
     ctx.save();
     ctx.globalAlpha = reveal;
     ctx.translate(0, (1 - reveal) * 26);
