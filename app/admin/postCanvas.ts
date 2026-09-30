@@ -621,6 +621,18 @@ export type DrawOpts = {
   logoOffsetX?: number;
   /** Deslocamento manual da logo em px, a partir da posição padrão do modelo. */
   logoOffsetY?: number;
+  /** Cartão de contato opcional, disponível em qualquer modelo: telefone
+   * deste post específico (independente do cadastrado em Contatos). Se
+   * vazio, nada é desenhado. */
+  contactCardPhone?: string;
+  /** Cartão de contato: nome de quem atende (opcional). */
+  contactCardName?: string;
+  /** Cartão de contato: QR code (gerado no navegador) pro WhatsApp desse telefone. */
+  contactCardQrCode?: HTMLImageElement | null;
+  /** Cartão de contato: deslocamento manual em px a partir da posição padrão (canto inferior). */
+  contactCardOffsetX?: number;
+  /** Cartão de contato: deslocamento manual em px a partir da posição padrão (canto inferior). */
+  contactCardOffsetY?: number;
   /** Campanha: pequena linha acima do título (ex.: "ESTÁ CHEGANDO A"). */
   kicker?: string;
   /** Campanha: segunda linha do título, em destaque (ex.: "SAFRA 26/27"). */
@@ -764,6 +776,72 @@ export function drawWhatsappFotoOverlay(
   }
 }
 
+/**
+ * Cartãozinho de contato opcional, disponível em QUALQUER modelo: ícone do
+ * WhatsApp + telefone + nome de quem atende + QR Code apontando pro
+ * WhatsApp desse número — independente do número cadastrado globalmente
+ * em Contatos. Só desenha algo se `phone` estiver preenchido. Sempre
+ * desenhado por cima de tudo (chamado no fim de `draw()`), então funciona
+ * igual em qualquer modelo sem precisar de ajuste por modelo.
+ */
+export function drawContactCard(
+  ctx: CanvasRenderingContext2D,
+  opts: {
+    h: number;
+    phone: string;
+    name?: string;
+    qrCode?: HTMLImageElement | null;
+    offsetX?: number;
+    offsetY?: number;
+  }
+) {
+  const { h: H, phone, name = "", qrCode = null, offsetX = 0, offsetY = 0 } = opts;
+  if (!phone) return;
+
+  const qrSize = 130;
+  const qrPad = 14;
+  const cardMargin = 56;
+  const cardH = qrSize + qrPad * 2 + 24;
+  const cardW = W - cardMargin * 2;
+  const cardX = cardMargin + offsetX;
+  const cardY = H - cardH - 56 + offsetY;
+
+  ctx.save();
+  ctx.fillStyle = "rgba(11,61,46,0.88)";
+  roundRect(ctx, cardX, cardY, cardW, cardH, 24);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.2)";
+  ctx.lineWidth = 2;
+  roundRect(ctx, cardX, cardY, cardW, cardH, 24);
+  ctx.stroke();
+
+  const qrBoxX = cardX + cardW - qrSize - qrPad - 12;
+  const qrBoxY = cardY + (cardH - qrSize) / 2;
+  ctx.fillStyle = "#ffffff";
+  roundRect(ctx, qrBoxX - qrPad, qrBoxY - qrPad, qrSize + qrPad * 2, qrSize + qrPad * 2, 16);
+  ctx.fill();
+  if (qrCode) {
+    ctx.drawImage(qrCode, qrBoxX, qrBoxY, qrSize, qrSize);
+  }
+
+  const contentX = cardX + 30;
+  const prevAlign = ctx.textAlign;
+  ctx.textAlign = "left";
+  const iconR = 26;
+  const rowY = name ? cardY + cardH / 2 - 20 : cardY + cardH / 2;
+  drawWhatsAppIcon(ctx, contentX + iconR, rowY, iconR);
+  ctx.font = "800 32px Montserrat, sans-serif";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(phone, contentX + iconR * 2 + 16, rowY + 11);
+  if (name) {
+    ctx.font = "600 24px Montserrat, sans-serif";
+    ctx.fillStyle = COLORS.lime;
+    ctx.fillText(name, contentX + iconR * 2 + 16, rowY + 44);
+  }
+  ctx.textAlign = prevAlign;
+  ctx.restore();
+}
+
 export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
   const {
     template,
@@ -791,10 +869,30 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     qrCode = null,
     contactPhone = "",
     contactInstagram = "",
+    contactCardPhone = "",
+    contactCardName = "",
+    contactCardQrCode = null,
+    contactCardOffsetX = 0,
+    contactCardOffsetY = 0,
   } = opts;
   ctx.clearRect(0, 0, W, H);
   ctx = scaledFontContext(ctx, fontScale);
 
+  // cada modelo termina com `return` assim que desenha o que é seu — pra
+  // poder desenhar o cartãozinho de contato (telefone + QR) por cima de
+  // QUALQUER modelo sem precisar mexer em cada um deles, o corpo inteiro
+  // vira uma função interna, chamada abaixo, e o cartão vem depois dela.
+  renderTemplate();
+  drawContactCard(ctx, {
+    h: H,
+    phone: contactCardPhone,
+    name: contactCardName,
+    qrCode: contactCardQrCode,
+    offsetX: contactCardOffsetX,
+    offsetY: contactCardOffsetY,
+  });
+
+  function renderTemplate() {
   if (template === "campanha") {
     if (photo) {
       drawCover(ctx, photo, 0, 0, W, H, zoom, photoOffsetX, photoOffsetY, photoScale);
@@ -2550,6 +2648,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     });
   }
   ctx.restore();
+  }
 }
 
 export async function loadFonts() {
