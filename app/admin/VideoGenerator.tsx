@@ -13,12 +13,15 @@ import {
   loadQrCode,
   buildWhatsAppLinkClient,
   draw,
+  drawCover,
+  drawWhatsappFotoOverlay,
   type TemplateKey,
   type FormatKey,
   type MediaSource,
 } from "./postCanvas";
 import { PhotoPicker, resolvePhotoSrc, type PhotoSource } from "./PhotoPicker";
 import { shareOrDownloadFile } from "./shareFile";
+import { usePhotoAdjust } from "./usePhotoAdjust";
 
 const DURATION_S = 5.5;
 // Limite de segurança bem alto (não é um limite "prático") — só pra
@@ -137,6 +140,9 @@ export function VideoGenerator({
   const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
   const [videoExt, setVideoExt] = useState<string>("webm");
   const [error, setError] = useState<string | null>(null);
+  const [logoScale, setLogoScale] = useState(1);
+  const [fontScale, setFontScale] = useState(1);
+  const photoAdjust = usePhotoAdjust();
 
   const activeTemplate = TEMPLATES.find((t) => t.key === template)!;
   const activeFormat = FORMATS.find((f) => f.key === format)!;
@@ -161,6 +167,13 @@ export function VideoGenerator({
     setVideoObjectUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [videoFile]);
+
+  // volta a foto/vídeo pro centro/sem zoom sempre que a origem muda — um
+  // enquadramento manual feito numa foto não faz sentido pra outra.
+  useEffect(() => {
+    photoAdjust.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photoChoice, uploadedPhoto, aiPhoto, videoObjectUrl]);
 
   // Static preview (settled frame) whenever not recording.
   useEffect(() => {
@@ -212,6 +225,11 @@ export function VideoGenerator({
           qrCode,
           contactPhone: contacts.phone,
           contactInstagram: contacts.instagramHandle,
+          photoOffsetX: photoAdjust.offsetX,
+          photoOffsetY: photoAdjust.offsetY,
+          photoScale: photoAdjust.scale,
+          logoScale,
+          fontScale,
         });
       } catch {
         if (!cancelled) {
@@ -248,6 +266,11 @@ export function VideoGenerator({
     siteImages,
     contacts,
     activeTemplate.needsPhoto,
+    photoAdjust.offsetX,
+    photoAdjust.offsetY,
+    photoAdjust.scale,
+    logoScale,
+    fontScale,
   ]);
 
   async function handleRecord() {
@@ -336,48 +359,134 @@ export function VideoGenerator({
       const startTime = performance.now();
       const c = ctx;
 
+      // Desenha cada frame num canvas fora da tela e só depois "cola" o
+      // resultado pronto no canvas que está sendo gravado (captureStream),
+      // num único drawImage. Alguns modelos fazem muitas operações de
+      // desenho por frame (foto + gradientes + cartão + QR + ícones + texto)
+      // e, sem esse buffer, o captureStream podia capturar o canvas gravado
+      // no meio dessa sequência — daí vídeos saindo com parte da tela preta.
+      const offscreen = document.createElement("canvas");
+      offscreen.width = W;
+      offscreen.height = activeFormat.height;
+      const offCtx = offscreen.getContext("2d")!;
+
+      // captureStream(30) grava a 30 quadros/segundo, mas o
+      // requestAnimationFrame do navegador dispara bem mais rápido que isso
+      // (60fps+ na maioria das telas). Desenhar (e "colar" no canvas
+      // gravado) em toda chamada de rAF gera o dobro do trabalho que a
+      // gravação realmente usa — em modelos com mais camadas de desenho
+      // (foto + gradientes + cartão + QR + ícones + texto), isso pode
+      // deixar a aba sem fôlego pra terminar um quadro antes do próximo
+      // começar, e o vídeo gravado sai com pedaços de dois quadros
+      // diferentes misturados. Por isso só desenhamos de fato no ritmo da
+      // gravação (~30fps) — o restante das chamadas de rAF só atualiza a
+      // barra de progresso.
+      const FRAME_INTERVAL_S = 1 / 30;
+      let lastDrawT = -Infinity;
+
+      // No modelo "WhatsApp (com foto)", tudo além da foto (véu, logo,
+      // selo, cartão, QR, contato) não muda quadro a quadro — só a foto
+      // (ou o vídeo enviado) muda. Desenhar esse tanto de camada em cima
+      // de um vídeo enviado (que já exige decodificar um frame novo a
+      // cada quadro) deixava o navegador sem fôlego, e a gravação saía
+      // com pedaço da tela preto/quadro incompleto. Por isso desenhamos
+      // essa parte fixa UMA VEZ e só colamos ela por cima a cada quadro.
+      let whatsappFotoOverlay: HTMLCanvasElement | null = null;
+      if (template === "whatsapp-foto") {
+        whatsappFotoOverlay = document.createElement("canvas");
+        whatsappFotoOverlay.width = W;
+        whatsappFotoOverlay.height = activeFormat.height;
+        const overlayCtx = whatsappFotoOverlay.getContext("2d")!;
+        drawWhatsappFotoOverlay(overlayCtx, {
+          h: activeFormat.height,
+          logo,
+          title,
+          qrCode,
+          contactPhone: contacts.phone,
+          contactInstagram: contacts.instagramHandle,
+          logoScale,
+          fontScale,
+        });
+      }
+
       await new Promise<void>((resolve) => {
         function frame(now: number) {
           const t = (now - startTime) / 1000;
           const p = Math.min(1, t / clipDuration);
           setProgress(p);
 
-          const zoom = sourceVideo ? 1 : 1 + (MAX_ZOOM - 1) * p;
-          const revealT =
-            (t - REVEAL_START) / (REVEAL_END - REVEAL_START);
-          const reveal = easeOutCubic(revealT);
+          const done = t >= clipDuration;
+          if (done || t - lastDrawT >= FRAME_INTERVAL_S) {
+            lastDrawT = t;
 
-          draw(c, {
-            template,
-            h: activeFormat.height,
-            photo,
-            logo,
-            title,
-            subtitle,
-            price,
-            kicker,
-            highlight,
-            body,
-            badges: [badge1, badge2, badge3],
-            location,
-            signature,
-            zoom,
-            reveal,
-            qrCode,
-            contactPhone: contacts.phone,
-            contactInstagram: contacts.instagramHandle,
-          });
+            const zoom = sourceVideo ? 1 : 1 + (MAX_ZOOM - 1) * p;
+            const revealT =
+              (t - REVEAL_START) / (REVEAL_END - REVEAL_START);
+            const reveal = easeOutCubic(revealT);
 
-          // fade from/to black at the edges
-          const fadeIn = Math.max(0, 1 - t / FADE_S);
-          const fadeOut = Math.max(0, 1 - (clipDuration - t) / FADE_S);
-          const fade = Math.max(fadeIn, fadeOut);
-          if (fade > 0) {
-            c.fillStyle = `rgba(0,0,0,${fade})`;
-            c.fillRect(0, 0, W, activeFormat.height);
+            if (whatsappFotoOverlay) {
+              if (photo) {
+                drawCover(
+                  offCtx,
+                  photo,
+                  0,
+                  0,
+                  W,
+                  activeFormat.height,
+                  zoom,
+                  photoAdjust.offsetX,
+                  photoAdjust.offsetY,
+                  photoAdjust.scale
+                );
+              } else {
+                offCtx.clearRect(0, 0, W, activeFormat.height);
+              }
+              offCtx.save();
+              offCtx.globalAlpha = reveal;
+              offCtx.translate(0, (1 - reveal) * 26);
+              offCtx.drawImage(whatsappFotoOverlay, 0, 0);
+              offCtx.restore();
+            } else {
+              draw(offCtx, {
+                template,
+                h: activeFormat.height,
+                photo,
+                logo,
+                title,
+                subtitle,
+                price,
+                kicker,
+                highlight,
+                body,
+                badges: [badge1, badge2, badge3],
+                location,
+                signature,
+                zoom,
+                reveal,
+                qrCode,
+                contactPhone: contacts.phone,
+                contactInstagram: contacts.instagramHandle,
+                photoOffsetX: photoAdjust.offsetX,
+                photoOffsetY: photoAdjust.offsetY,
+                photoScale: photoAdjust.scale,
+                logoScale,
+                fontScale,
+              });
+            }
+
+            // fade from/to black at the edges
+            const fadeIn = Math.max(0, 1 - t / FADE_S);
+            const fadeOut = Math.max(0, 1 - (clipDuration - t) / FADE_S);
+            const fade = Math.max(fadeIn, fadeOut);
+            if (fade > 0) {
+              offCtx.fillStyle = `rgba(0,0,0,${fade})`;
+              offCtx.fillRect(0, 0, W, activeFormat.height);
+            }
+
+            c.drawImage(offscreen, 0, 0);
           }
 
-          if (t < clipDuration) {
+          if (!done) {
             requestAnimationFrame(frame);
           } else {
             resolve();
@@ -418,10 +527,102 @@ export function VideoGenerator({
           ref={canvasRef}
           width={W}
           height={activeFormat.height}
-          className={`h-auto rounded-xl bg-black ring-1 ring-black/10 ${
-            format === "story" ? "w-full max-w-[260px]" : "w-full max-w-[420px]"
-          }`}
+          onPointerDown={
+            activeTemplate.needsPhoto && !recording ? photoAdjust.onDragStart : undefined
+          }
+          onPointerMove={
+            activeTemplate.needsPhoto && !recording ? photoAdjust.onDragMove : undefined
+          }
+          onPointerUp={activeTemplate.needsPhoto && !recording ? photoAdjust.onDragEnd : undefined}
+          onPointerCancel={
+            activeTemplate.needsPhoto && !recording ? photoAdjust.onDragEnd : undefined
+          }
+          className={`h-auto touch-none rounded-xl bg-black ring-1 ring-black/10 ${
+            activeTemplate.needsPhoto && !recording ? "cursor-move" : ""
+          } ${format === "story" ? "w-full max-w-[260px]" : "w-full max-w-[420px]"}`}
         />
+        {activeTemplate.needsPhoto && !recording && (
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={photoAdjust.zoomOut}
+              className="h-8 w-8 rounded-full bg-black/5 text-sm font-bold text-nd-graphite hover:bg-black/10"
+              aria-label="Diminuir zoom da foto"
+            >
+              −
+            </button>
+            <button
+              type="button"
+              onClick={photoAdjust.zoomIn}
+              className="h-8 w-8 rounded-full bg-black/5 text-sm font-bold text-nd-graphite hover:bg-black/10"
+              aria-label="Aumentar zoom da foto"
+            >
+              +
+            </button>
+            <button
+              type="button"
+              onClick={photoAdjust.reset}
+              className="rounded-full bg-black/5 px-3 py-1 text-xs font-medium text-nd-graphite hover:bg-black/10"
+            >
+              Centralizar
+            </button>
+            <span className="text-xs text-nd-graphite/50">Arraste a imagem pra ajustar</span>
+          </div>
+        )}
+        {!recording && (
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-nd-graphite/60">Logo</span>
+              <button
+                type="button"
+                onClick={() => setLogoScale((s) => Math.max(0.6, +(s - 0.1).toFixed(2)))}
+                className="h-7 w-7 rounded-full bg-black/5 text-sm font-bold text-nd-graphite hover:bg-black/10"
+                aria-label="Diminuir tamanho da logo"
+              >
+                −
+              </button>
+              <button
+                type="button"
+                onClick={() => setLogoScale((s) => Math.min(1.8, +(s + 0.1).toFixed(2)))}
+                className="h-7 w-7 rounded-full bg-black/5 text-sm font-bold text-nd-graphite hover:bg-black/10"
+                aria-label="Aumentar tamanho da logo"
+              >
+                +
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-nd-graphite/60">Letra</span>
+              <button
+                type="button"
+                onClick={() => setFontScale((s) => Math.max(0.6, +(s - 0.1).toFixed(2)))}
+                className="h-7 w-7 rounded-full bg-black/5 text-sm font-bold text-nd-graphite hover:bg-black/10"
+                aria-label="Diminuir tamanho da letra"
+              >
+                −
+              </button>
+              <button
+                type="button"
+                onClick={() => setFontScale((s) => Math.min(1.8, +(s + 0.1).toFixed(2)))}
+                className="h-7 w-7 rounded-full bg-black/5 text-sm font-bold text-nd-graphite hover:bg-black/10"
+                aria-label="Aumentar tamanho da letra"
+              >
+                +
+              </button>
+            </div>
+            {(logoScale !== 1 || fontScale !== 1) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setLogoScale(1);
+                  setFontScale(1);
+                }}
+                className="rounded-full bg-black/5 px-3 py-1 text-xs font-medium text-nd-graphite hover:bg-black/10"
+              >
+                Tamanho padrão
+              </button>
+            )}
+          </div>
+        )}
         {videoObjectUrl && (
           <video
             ref={sourceVideoRef}

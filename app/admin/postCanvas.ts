@@ -2,6 +2,37 @@ import QRCode from "qrcode";
 
 export const W = 1080;
 
+/**
+ * Envolve o contexto do canvas num Proxy que intercepta `ctx.font = "..."`
+ * e multiplica o tamanho em px pelo `fontScale` antes de aplicar — assim
+ * o controle de "tamanho da letra" funciona em todos os modelos de uma
+ * vez, sem precisar mexer em cada `ctx.font = "..."` espalhado pelo
+ * arquivo (são dezenas). Só a fonte é escalada; o espaçamento entre
+ * linhas de cada modelo continua fixo, então valores de escala muito
+ * longe de 1 podem fazer o texto se sobrepor em alguns modelos.
+ */
+function scaledFontContext(
+  ctx: CanvasRenderingContext2D,
+  fontScale: number
+): CanvasRenderingContext2D {
+  if (fontScale === 1 || !fontScale) return ctx;
+  return new Proxy(ctx, {
+    set(target, prop, value, receiver) {
+      if (prop === "font" && typeof value === "string") {
+        const scaled = value.replace(/([\d.]+)px/, (_, px) =>
+          `${Math.round(parseFloat(px) * fontScale)}px`
+        );
+        return Reflect.set(target, prop, scaled, target);
+      }
+      return Reflect.set(target, prop, value, target);
+    },
+    get(target, prop) {
+      const value = Reflect.get(target, prop, target);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  }) as CanvasRenderingContext2D;
+}
+
 export type TemplateKey =
   | "servico"
   | "frase"
@@ -25,7 +56,8 @@ export type TemplateKey =
   | "linhas"
   | "impacto"
   | "whatsapp"
-  | "whatsapp-foto";
+  | "whatsapp-foto"
+  | "agenda";
 export type FormatKey = "quadrado" | "story";
 
 export const FORMATS: { key: FormatKey; label: string; height: number }[] = [
@@ -61,6 +93,7 @@ export const TEMPLATES: {
   { key: "contato", label: "Contato", needsPhoto: false },
   { key: "whatsapp", label: "WhatsApp (com QR code)", needsPhoto: false },
   { key: "whatsapp-foto", label: "WhatsApp (com foto e QR grande)", needsPhoto: true },
+  { key: "agenda", label: "Agenda aberta (título + checklist)", needsPhoto: true },
 ];
 
 /** Modelos que usam o conjunto de campos "estilo Campanha" (linha pequena,
@@ -83,6 +116,7 @@ export const RICH_FIELD_TEMPLATES: TemplateKey[] = [
   "citacao",
   "linhas",
   "impacto",
+  "agenda",
 ];
 
 export const COLORS = {
@@ -187,14 +221,20 @@ function wrapText(
   return lines;
 }
 
-function drawCover(
+export function drawCover(
   ctx: CanvasRenderingContext2D,
   img: MediaSource,
   x: number,
   y: number,
   w: number,
   h: number,
-  zoom = 1
+  zoom = 1,
+  /** Pan manual do usuário, -1 (esquerda) a 1 (direita), 0 = centralizado. */
+  offsetX = 0,
+  /** Pan manual do usuário, -1 (cima) a 1 (baixo), 0 = centralizado. */
+  offsetY = 0,
+  /** Zoom manual do usuário (slider), multiplica o `zoom` da animação. */
+  userZoom = 1
 ) {
   const { width: iw, height: ih } = mediaSize(img);
   if (!iw || !ih) return;
@@ -212,13 +252,25 @@ function drawCover(
     sx = 0;
     sy = (ih - sh) / 2;
   }
-  if (zoom > 1) {
-    const zw = sw / zoom;
-    const zh = sh / zoom;
+  const totalZoom = Math.max(1, zoom * userZoom);
+  if (totalZoom > 1) {
+    const zw = sw / totalZoom;
+    const zh = sh / totalZoom;
     sx += (sw - zw) / 2;
     sy += (sh - zh) / 2;
     sw = zw;
     sh = zh;
+  }
+  // aplica o pan manual dentro da folga que sobrou entre o recorte
+  // (sw/sh) e a imagem original (iw/ih) — offset 0 mantém centralizado,
+  // como antes.
+  const slackX = iw - sw;
+  const slackY = ih - sh;
+  if (slackX > 0) {
+    sx = Math.min(Math.max(0, sx + (offsetX * slackX) / 2), slackX);
+  }
+  if (slackY > 0) {
+    sy = Math.min(Math.max(0, sy + (offsetY * slackY) / 2), slackY);
   }
   ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
 }
@@ -243,10 +295,11 @@ function roundRect(
 function drawLogoTopLeft(
   ctx: CanvasRenderingContext2D,
   logo: HTMLImageElement | null,
-  margin: number
+  margin: number,
+  logoScale = 1
 ) {
   if (!logo) return;
-  const w = 760;
+  const w = 760 * logoScale;
   const h = (logo.height / logo.width) * w;
   ctx.drawImage(logo, margin, margin, w, h);
 }
@@ -254,10 +307,11 @@ function drawLogoTopLeft(
 function drawLogoTopRight(
   ctx: CanvasRenderingContext2D,
   logo: HTMLImageElement | null,
-  margin: number
+  margin: number,
+  logoScale = 1
 ) {
   if (!logo) return;
-  const w = 760;
+  const w = 760 * logoScale;
   const h = (logo.height / logo.width) * w;
   ctx.drawImage(logo, W - margin - w, margin, w, h);
 }
@@ -549,6 +603,16 @@ export type DrawOpts = {
   zoom?: number;
   /** 0..1, how revealed the foreground (text/logo/badges) is. 1 = fully shown. */
   reveal?: number;
+  /** Pan manual do usuário sobre a foto, -1 a 1 (0 = centralizado). */
+  photoOffsetX?: number;
+  /** Pan manual do usuário sobre a foto, -1 a 1 (0 = centralizado). */
+  photoOffsetY?: number;
+  /** Zoom manual do usuário sobre a foto (slider), multiplica o `zoom` da animação. */
+  photoScale?: number;
+  /** Tamanho da logo (1 = padrão do modelo). */
+  logoScale?: number;
+  /** Tamanho geral do texto (1 = padrão do modelo). */
+  fontScale?: number;
   /** Campanha: pequena linha acima do título (ex.: "ESTÁ CHEGANDO A"). */
   kicker?: string;
   /** Campanha: segunda linha do título, em destaque (ex.: "SAFRA 26/27"). */
@@ -569,6 +633,125 @@ export type DrawOpts = {
   contactInstagram?: string;
 };
 
+/**
+ * Tudo do modelo "WhatsApp (com foto)" que NÃO é a foto de fundo — véu,
+ * logo, selo, cartão, QR e contato. Nada aqui depende de zoom/tempo (só de
+ * texto/QR, que ficam fixos durante uma gravação), então dá pra desenhar
+ * uma vez só, guardar como imagem e "colar" a cada quadro em vez de
+ * refazer ~15 operações de canvas (gradientes, roundRect, texto, ícones)
+ * por quadro — o que, em cima da decodificação de um vídeo enviado como
+ * fundo, deixava esse modelo pesado o bastante pra gravação sair com
+ * quadros incompletos (parte da tela preta).
+ */
+export function drawWhatsappFotoOverlay(
+  rawCtx: CanvasRenderingContext2D,
+  opts: {
+    h: number;
+    logo: HTMLImageElement | null;
+    title?: string;
+    qrCode?: HTMLImageElement | null;
+    contactPhone?: string;
+    contactInstagram?: string;
+    logoScale?: number;
+    fontScale?: number;
+  }
+) {
+  const {
+    h: H,
+    logo,
+    title = "",
+    qrCode = null,
+    contactPhone = "",
+    contactInstagram = "",
+    logoScale = 1,
+    fontScale = 1,
+  } = opts;
+  const ctx = scaledFontContext(rawCtx, fontScale);
+
+  const cardMargin = 56;
+  const cardH = 224;
+  const cardY = H - cardH - 64;
+
+  const fog = ctx.createLinearGradient(0, cardY - 140, 0, H);
+  fog.addColorStop(0, "rgba(0,0,0,0)");
+  fog.addColorStop(1, "rgba(0,0,0,0.5)");
+  ctx.fillStyle = fog;
+  ctx.fillRect(0, cardY - 140, W, H - (cardY - 140));
+
+  // véu leve no topo (igual aos outros modelos com foto) — sem ele, o
+  // canto de cima do canvas fica sem nenhuma camada extra sobre a foto,
+  // e em algumas gravações de vídeo (MediaRecorder/captureStream) essa
+  // faixa sai preta em vez de mostrar a foto.
+  const topWash = ctx.createLinearGradient(0, 0, 0, 300);
+  topWash.addColorStop(0, "rgba(0,0,0,0.35)");
+  topWash.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = topWash;
+  ctx.fillRect(0, 0, W, 300);
+
+  ctx.textAlign = "left";
+  drawLogoTopLeft(ctx, logo, 56, logoScale);
+
+  // selo pequeno acima do cartão, no estilo dos outros modelos
+  ctx.font = "700 24px Montserrat, sans-serif";
+  const kickerText = (title || "Fale com a gente").toUpperCase();
+  const kickerW = ctx.measureText(kickerText).width;
+  const kickerPadX = 22;
+  const kickerH = 46;
+  const kickerY = cardY - kickerH - 22;
+  ctx.fillStyle = COLORS.lime;
+  roundRect(ctx, cardMargin, kickerY, kickerW + kickerPadX * 2, kickerH, kickerH / 2);
+  ctx.fill();
+  ctx.fillStyle = COLORS.greenDark;
+  ctx.textBaseline = "middle";
+  ctx.fillText(kickerText, cardMargin + kickerPadX, kickerY + kickerH / 2 + 1);
+  ctx.textBaseline = "alphabetic";
+
+  // cartão translúcido no rodapé, estilo "cartão de visita"
+  const cardW = W - cardMargin * 2;
+  ctx.fillStyle = "rgba(11,61,46,0.82)";
+  roundRect(ctx, cardMargin, cardY, cardW, cardH, 26);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.2)";
+  ctx.lineWidth = 2;
+  roundRect(ctx, cardMargin, cardY, cardW, cardH, 26);
+  ctx.stroke();
+
+  // QR pequeno, só um reforço no canto direito do cartão — não é mais
+  // o protagonista da arte, o telefone/Instagram é que chamam atenção.
+  const qrSize = 168;
+  const qrPad = 16;
+  const qrBoxX = cardMargin + cardW - qrSize - 32;
+  const qrBoxY = cardY + (cardH - qrSize) / 2;
+  ctx.fillStyle = "#ffffff";
+  roundRect(ctx, qrBoxX - qrPad, qrBoxY - qrPad, qrSize + qrPad * 2, qrSize + qrPad * 2, 18);
+  ctx.fill();
+  if (qrCode) {
+    ctx.drawImage(qrCode, qrBoxX, qrBoxY, qrSize, qrSize);
+  }
+
+  // telefone e Instagram, à esquerda do cartão
+  const contentX = cardMargin + 34;
+  const hasBoth = Boolean(contactPhone) && Boolean(contactInstagram);
+  let rowY = cardY + cardH / 2 - (hasBoth ? 32 : 0);
+
+  if (contactPhone) {
+    const iconR = 27;
+    drawWhatsAppIcon(ctx, contentX + iconR, rowY, iconR);
+    ctx.font = "800 34px Montserrat, sans-serif";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(contactPhone, contentX + iconR * 2 + 16, rowY + 12);
+    rowY += 66;
+  }
+
+  if (contactInstagram) {
+    const iconR = 24;
+    drawInstagramIcon(ctx, contentX + iconR, rowY, iconR);
+    ctx.font = "700 29px Montserrat, sans-serif";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(contactInstagram, contentX + iconR * 2 + 14, rowY + 10);
+  }
+}
+
 export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
   const {
     template,
@@ -580,6 +763,11 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     price,
     zoom = 1,
     reveal = 1,
+    photoOffsetX = 0,
+    photoOffsetY = 0,
+    photoScale = 1,
+    logoScale = 1,
+    fontScale = 1,
     kicker = "",
     highlight = "",
     body = "",
@@ -591,10 +779,11 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     contactInstagram = "",
   } = opts;
   ctx.clearRect(0, 0, W, H);
+  ctx = scaledFontContext(ctx, fontScale);
 
   if (template === "campanha") {
     if (photo) {
-      drawCover(ctx, photo, 0, 0, W, H, zoom);
+      drawCover(ctx, photo, 0, 0, W, H, zoom, photoOffsetX, photoOffsetY, photoScale);
     } else {
       ctx.fillStyle = COLORS.greenDark;
       ctx.fillRect(0, 0, W, H);
@@ -621,7 +810,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.translate(0, (1 - reveal) * 26);
 
     ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 60);
+    drawLogoTopLeft(ctx, logo, 60, logoScale);
 
     const leftMargin = 60;
     const maxTextW = splitX - leftMargin - 40;
@@ -723,7 +912,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
   if (template === "campanha-direita") {
     if (photo) {
-      drawCover(ctx, photo, 0, 0, W, H, zoom);
+      drawCover(ctx, photo, 0, 0, W, H, zoom, photoOffsetX, photoOffsetY, photoScale);
     } else {
       ctx.fillStyle = COLORS.greenDark;
       ctx.fillRect(0, 0, W, H);
@@ -749,7 +938,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.translate(0, (1 - reveal) * 26);
 
     ctx.textAlign = "right";
-    drawLogoTopRight(ctx, logo, 60);
+    drawLogoTopRight(ctx, logo, 60, logoScale);
 
     const rightMargin = 60;
     const textX = W - rightMargin;
@@ -856,7 +1045,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
   if (template === "moderno") {
     if (photo) {
-      drawCover(ctx, photo, 0, 0, W, H, zoom);
+      drawCover(ctx, photo, 0, 0, W, H, zoom, photoOffsetX, photoOffsetY, photoScale);
     } else {
       ctx.fillStyle = COLORS.greenDark;
       ctx.fillRect(0, 0, W, H);
@@ -898,7 +1087,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.translate(0, (1 - reveal) * 26);
 
     ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 60);
+    drawLogoTopLeft(ctx, logo, 60, logoScale);
 
     const leftMargin = 60;
     const maxTextW = W - leftMargin * 2 - 40;
@@ -1001,7 +1190,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
   if (template === "neblina") {
     if (photo) {
-      drawCover(ctx, photo, 0, 0, W, H, zoom);
+      drawCover(ctx, photo, 0, 0, W, H, zoom, photoOffsetX, photoOffsetY, photoScale);
     } else {
       ctx.fillStyle = COLORS.greenDark;
       ctx.fillRect(0, 0, W, H);
@@ -1026,7 +1215,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.translate(0, (1 - reveal) * 26);
 
     ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 60);
+    drawLogoTopLeft(ctx, logo, 60, logoScale);
 
     const leftMargin = 60;
     const maxTextW = W - leftMargin * 2 - 40;
@@ -1140,7 +1329,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.beginPath();
       ctx.arc(cx, cy, cr, 0, Math.PI * 2);
       ctx.clip();
-      drawCover(ctx, photo, cx - cr, cy - cr, cr * 2, cr * 2, zoom);
+      drawCover(ctx, photo, cx - cr, cy - cr, cr * 2, cr * 2, zoom, photoOffsetX, photoOffsetY, photoScale);
       ctx.restore();
     }
     ctx.save();
@@ -1159,7 +1348,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.globalAlpha = reveal;
     ctx.translate(0, (1 - reveal) * 26);
 
-    drawLogoTopLeft(ctx, logo, 50);
+    drawLogoTopLeft(ctx, logo, 50, logoScale);
 
     const leftMargin = 70;
     const maxW = W - leftMargin * 2;
@@ -1197,7 +1386,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
   if (template === "diagonal") {
     if (photo) {
-      drawCover(ctx, photo, 0, 0, W, H, zoom);
+      drawCover(ctx, photo, 0, 0, W, H, zoom, photoOffsetX, photoOffsetY, photoScale);
     } else {
       ctx.fillStyle = COLORS.greenDark;
       ctx.fillRect(0, 0, W, H);
@@ -1222,7 +1411,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.translate(0, (1 - reveal) * 26);
 
     ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 60);
+    drawLogoTopLeft(ctx, logo, 60, logoScale);
 
     const leftMargin = 60;
     const maxW = W - leftMargin * 2 - 40;
@@ -1260,7 +1449,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.save();
       roundRect(ctx, frameM, frameM, W - frameM * 2, photoH, 18);
       ctx.clip();
-      drawCover(ctx, photo, frameM, frameM, W - frameM * 2, photoH, zoom);
+      drawCover(ctx, photo, frameM, frameM, W - frameM * 2, photoH, zoom, photoOffsetX, photoOffsetY, photoScale);
       ctx.restore();
     }
     ctx.save();
@@ -1274,7 +1463,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.globalAlpha = reveal;
     ctx.translate(0, (1 - reveal) * 26);
 
-    drawLogoTopLeft(ctx, logo, frameM + 14);
+    drawLogoTopLeft(ctx, logo, frameM + 14, logoScale);
 
     const leftMargin = frameM + 20;
     const maxW = W - leftMargin * 2;
@@ -1331,7 +1520,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.save();
       roundRect(ctx, cardM, cardY, W - cardM * 2, cardH, 28);
       ctx.clip();
-      drawCover(ctx, photo, cardM, cardY, W - cardM * 2, cardH, zoom);
+      drawCover(ctx, photo, cardM, cardY, W - cardM * 2, cardH, zoom, photoOffsetX, photoOffsetY, photoScale);
       ctx.restore();
     }
 
@@ -1340,7 +1529,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.translate(0, (1 - reveal) * 26);
 
     ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 50);
+    drawLogoTopLeft(ctx, logo, 50, logoScale);
 
     if (kicker) {
       ctx.font = "700 22px Montserrat, sans-serif";
@@ -1394,7 +1583,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
   if (template === "ondas") {
     if (photo) {
-      drawCover(ctx, photo, 0, 0, W, H, zoom);
+      drawCover(ctx, photo, 0, 0, W, H, zoom, photoOffsetX, photoOffsetY, photoScale);
     } else {
       ctx.fillStyle = COLORS.greenDark;
       ctx.fillRect(0, 0, W, H);
@@ -1417,7 +1606,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.translate(0, (1 - reveal) * 26);
 
     ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 60);
+    drawLogoTopLeft(ctx, logo, 60, logoScale);
 
     const leftMargin = 60;
     const maxW = W - leftMargin * 2 - 40;
@@ -1451,7 +1640,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
   if (template === "etiqueta") {
     if (photo) {
-      drawCover(ctx, photo, 0, 0, W, H, zoom);
+      drawCover(ctx, photo, 0, 0, W, H, zoom, photoOffsetX, photoOffsetY, photoScale);
     } else {
       ctx.fillStyle = COLORS.greenDark;
       ctx.fillRect(0, 0, W, H);
@@ -1468,7 +1657,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.translate(0, (1 - reveal) * 26);
 
     ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 60);
+    drawLogoTopLeft(ctx, logo, 60, logoScale);
 
     if (highlight) {
       const tagW = 300;
@@ -1525,7 +1714,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
   if (template === "hexagonos") {
     if (photo) {
-      drawCover(ctx, photo, 0, 0, W, H, zoom);
+      drawCover(ctx, photo, 0, 0, W, H, zoom, photoOffsetX, photoOffsetY, photoScale);
     } else {
       ctx.fillStyle = COLORS.greenDark;
       ctx.fillRect(0, 0, W, H);
@@ -1558,7 +1747,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.translate(0, (1 - reveal) * 26);
 
     ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 60);
+    drawLogoTopLeft(ctx, logo, 60, logoScale);
 
     const leftMargin = 60;
     const maxW = splitX - leftMargin - 40;
@@ -1637,7 +1826,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.translate(0, (1 - reveal) * 26);
 
     ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 60);
+    drawLogoTopLeft(ctx, logo, 60, logoScale);
 
     const leftMargin = 70;
     const maxW = W - leftMargin * 2;
@@ -1711,7 +1900,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.translate(0, (1 - reveal) * 26);
 
     ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 60);
+    drawLogoTopLeft(ctx, logo, 60, logoScale);
 
     const leftMargin = 70;
     const maxW = W - leftMargin * 2;
@@ -1776,7 +1965,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.translate(0, (1 - reveal) * 26);
 
     ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 60);
+    drawLogoTopLeft(ctx, logo, 60, logoScale);
 
     ctx.fillStyle = "rgba(255,255,255,0.14)";
     ctx.font = "800 220px Georgia, serif";
@@ -2003,7 +2192,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     }
 
     if (logo) {
-      const w = 680;
+      const w = 680 * logoScale;
       const h = (logo.height / logo.width) * w;
       ctx.drawImage(logo, (W - w) / 2, H - h - 80, w, h);
     }
@@ -2013,7 +2202,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
   if (template === "diferencial") {
     ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 70);
+    drawLogoTopLeft(ctx, logo, 70, logoScale);
 
     ctx.fillStyle = COLORS.lime;
     ctx.font = "800 34px Montserrat, sans-serif";
@@ -2046,7 +2235,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.textAlign = "center";
 
     if (logo) {
-      const w = 760;
+      const w = 760 * logoScale;
       const h = (logo.height / logo.width) * w;
       ctx.drawImage(logo, (W - w) / 2, H * 0.22, w, h);
     }
@@ -2089,11 +2278,98 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     return;
   }
 
+  if (template === "agenda") {
+    // estilo "cartaz de divulgação": título grande no topo, foto em
+    // destaque no meio, logo + lista de itens com check + telefone embaixo.
+    if (photo) {
+      drawCover(ctx, photo, 0, 0, W, H, zoom, photoOffsetX, photoOffsetY, photoScale);
+    } else {
+      ctx.fillStyle = COLORS.greenDark;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    const topH = H * 0.34;
+    const topOverlay = ctx.createLinearGradient(0, 0, 0, topH);
+    topOverlay.addColorStop(0, "rgba(11,61,46,0.85)");
+    topOverlay.addColorStop(1, "rgba(11,61,46,0)");
+    ctx.fillStyle = topOverlay;
+    ctx.fillRect(0, 0, W, topH);
+
+    const bottomH = H * 0.4;
+    const bottomOverlay = ctx.createLinearGradient(0, H - bottomH, 0, H);
+    bottomOverlay.addColorStop(0, "rgba(11,61,46,0)");
+    bottomOverlay.addColorStop(0.22, "rgba(11,61,46,0.9)");
+    bottomOverlay.addColorStop(1, "rgba(11,61,46,0.97)");
+    ctx.fillStyle = bottomOverlay;
+    ctx.fillRect(0, H - bottomH, W, bottomH);
+
+    ctx.save();
+    ctx.globalAlpha = reveal;
+    ctx.translate(0, (1 - reveal) * 26);
+
+    // título grande, centralizado no topo
+    ctx.textAlign = "center";
+    ctx.shadowColor = "rgba(0,0,0,0.5)";
+    ctx.shadowBlur = 20;
+    ctx.font = "800 76px Montserrat, sans-serif";
+    ctx.fillStyle = "#ffffff";
+    const maxTitleW = W - 100;
+    const titleLines = wrapText(ctx, (title || "Agenda aberta").toUpperCase(), maxTitleW);
+    let titleY = 96;
+    titleLines.forEach((line) => {
+      ctx.fillText(line, W / 2, titleY);
+      titleY += 84;
+    });
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
+
+    // logo + nome, centralizados, logo acima da faixa de baixo
+    const logoW = 230 * logoScale;
+    const logoH = logo ? (logo.height / logo.width) * logoW : 0;
+    const logoY = H - bottomH + 44;
+    if (logo) {
+      ctx.drawImage(logo, (W - logoW) / 2, logoY, logoW, logoH);
+    }
+
+    // lista de itens com check, centralizada
+    const activeItems = badges.filter(Boolean).slice(0, 4);
+    let listY = logoY + logoH + 54;
+    ctx.font = "700 32px Montserrat, sans-serif";
+    activeItems.forEach((item) => {
+      const label = item;
+      ctx.font = "800 32px Montserrat, sans-serif";
+      const checkW = ctx.measureText("✓ ").width;
+      ctx.font = "700 32px Montserrat, sans-serif";
+      const labelW = ctx.measureText(label).width;
+      const totalW = checkW + labelW;
+      const startX = W / 2 - totalW / 2;
+      ctx.textAlign = "left";
+      ctx.font = "800 32px Montserrat, sans-serif";
+      ctx.fillStyle = COLORS.lime;
+      ctx.fillText("✓ ", startX, listY);
+      ctx.font = "700 32px Montserrat, sans-serif";
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(label, startX + checkW, listY);
+      ctx.textAlign = "center";
+      listY += 46;
+    });
+
+    // telefone, logo abaixo da lista, em destaque
+    if (contactPhone) {
+      ctx.font = "800 46px Montserrat, sans-serif";
+      ctx.fillStyle = COLORS.lime;
+      ctx.fillText(contactPhone, W / 2, Math.min(listY + 40, H - 44));
+    }
+
+    ctx.restore();
+    return;
+  }
+
   if (template === "whatsapp") {
     ctx.textAlign = "center";
 
     if (logo) {
-      const w = 560;
+      const w = 560 * logoScale;
       const h = (logo.height / logo.width) * w;
       ctx.drawImage(logo, (W - w) / 2, H * 0.05, w, h);
     }
@@ -2154,89 +2430,16 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     // a foto fica praticamente inteira à mostra — só um véu leve embaixo,
     // atrás do cartão de contato, pra foto ser o destaque do post.
     if (photo) {
-      drawCover(ctx, photo, 0, 0, W, H, zoom);
+      drawCover(ctx, photo, 0, 0, W, H, zoom, photoOffsetX, photoOffsetY, photoScale);
     } else {
       ctx.fillStyle = COLORS.greenDark;
       ctx.fillRect(0, 0, W, H);
     }
 
-    const cardMargin = 56;
-    const cardH = 224;
-    const cardY = H - cardH - 64;
-
-    const fog = ctx.createLinearGradient(0, cardY - 140, 0, H);
-    fog.addColorStop(0, "rgba(0,0,0,0)");
-    fog.addColorStop(1, "rgba(0,0,0,0.5)");
-    ctx.fillStyle = fog;
-    ctx.fillRect(0, cardY - 140, W, H - (cardY - 140));
-
     ctx.save();
     ctx.globalAlpha = reveal;
     ctx.translate(0, (1 - reveal) * 26);
-
-    ctx.textAlign = "left";
-    drawLogoTopLeft(ctx, logo, 56);
-
-    // selo pequeno acima do cartão, no estilo dos outros modelos
-    ctx.font = "700 24px Montserrat, sans-serif";
-    const kickerText = (title || "Fale com a gente").toUpperCase();
-    const kickerW = ctx.measureText(kickerText).width;
-    const kickerPadX = 22;
-    const kickerH = 46;
-    const kickerY = cardY - kickerH - 22;
-    ctx.fillStyle = COLORS.lime;
-    roundRect(ctx, cardMargin, kickerY, kickerW + kickerPadX * 2, kickerH, kickerH / 2);
-    ctx.fill();
-    ctx.fillStyle = COLORS.greenDark;
-    ctx.textBaseline = "middle";
-    ctx.fillText(kickerText, cardMargin + kickerPadX, kickerY + kickerH / 2 + 1);
-    ctx.textBaseline = "alphabetic";
-
-    // cartão translúcido no rodapé, estilo "cartão de visita"
-    const cardW = W - cardMargin * 2;
-    ctx.fillStyle = "rgba(11,61,46,0.82)";
-    roundRect(ctx, cardMargin, cardY, cardW, cardH, 26);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.2)";
-    ctx.lineWidth = 2;
-    roundRect(ctx, cardMargin, cardY, cardW, cardH, 26);
-    ctx.stroke();
-
-    // QR pequeno, só um reforço no canto direito do cartão — não é mais
-    // o protagonista da arte, o telefone/Instagram é que chamam atenção.
-    const qrSize = 168;
-    const qrPad = 16;
-    const qrBoxX = cardMargin + cardW - qrSize - 32;
-    const qrBoxY = cardY + (cardH - qrSize) / 2;
-    ctx.fillStyle = "#ffffff";
-    roundRect(ctx, qrBoxX - qrPad, qrBoxY - qrPad, qrSize + qrPad * 2, qrSize + qrPad * 2, 18);
-    ctx.fill();
-    if (qrCode) {
-      ctx.drawImage(qrCode, qrBoxX, qrBoxY, qrSize, qrSize);
-    }
-
-    // telefone e Instagram, à esquerda do cartão
-    const contentX = cardMargin + 34;
-    const hasBoth = Boolean(contactPhone) && Boolean(contactInstagram);
-    let rowY = cardY + cardH / 2 - (hasBoth ? 32 : 0);
-
-    if (contactPhone) {
-      const iconR = 27;
-      drawWhatsAppIcon(ctx, contentX + iconR, rowY, iconR);
-      ctx.font = "800 34px Montserrat, sans-serif";
-      ctx.fillStyle = "#ffffff";
-      ctx.fillText(contactPhone, contentX + iconR * 2 + 16, rowY + 12);
-      rowY += 66;
-    }
-
-    if (contactInstagram) {
-      const iconR = 24;
-      drawInstagramIcon(ctx, contentX + iconR, rowY, iconR);
-      ctx.font = "700 29px Montserrat, sans-serif";
-      ctx.fillStyle = "#ffffff";
-      ctx.fillText(contactInstagram, contentX + iconR * 2 + 14, rowY + 10);
-    }
-
+    drawWhatsappFotoOverlay(ctx, { h: H, logo, title, qrCode, contactPhone, contactInstagram, logoScale });
     ctx.restore();
     return;
   }
@@ -2245,7 +2448,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
   // servico / promocao: photo (or solid) background + bottom gradient + text
   if (photo) {
-    drawCover(ctx, photo, 0, 0, W, H, zoom);
+    drawCover(ctx, photo, 0, 0, W, H, zoom, photoOffsetX, photoOffsetY, photoScale);
   } else {
     ctx.fillStyle = COLORS.greenDark;
     ctx.fillRect(0, 0, W, H);
@@ -2268,7 +2471,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
   ctx.translate(0, (1 - reveal) * 26);
 
   ctx.textAlign = "left";
-  drawLogoTopLeft(ctx, logo, 70);
+  drawLogoTopLeft(ctx, logo, 70, logoScale);
 
   if (template === "promocao" && price) {
     ctx.font = "800 46px Montserrat, sans-serif";

@@ -18,6 +18,7 @@ import {
 } from "./postCanvas";
 import { PhotoPicker, resolvePhotoSrc, type PhotoSource } from "./PhotoPicker";
 import { shareOrDownloadFile, dataUrlToBlob } from "./shareFile";
+import { usePhotoAdjust } from "./usePhotoAdjust";
 
 export function PostGenerator({
   siteImages,
@@ -48,9 +49,19 @@ export function PostGenerator({
   const [rendering, setRendering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [logoScale, setLogoScale] = useState(1);
+  const [fontScale, setFontScale] = useState(1);
+  const photoAdjust = usePhotoAdjust();
 
   const activeTemplate = TEMPLATES.find((t) => t.key === template)!;
   const activeFormat = FORMATS.find((f) => f.key === format)!;
+
+  // volta a foto pro centro/sem zoom sempre que a origem da foto muda —
+  // um enquadramento manual feito numa foto não faz sentido pra outra.
+  useEffect(() => {
+    photoAdjust.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photoChoice, uploadedPhoto, aiPhoto]);
 
   useEffect(() => {
     let cancelled = false;
@@ -103,6 +114,11 @@ export function PostGenerator({
           qrCode,
           contactPhone: contacts.phone,
           contactInstagram: contacts.instagramHandle,
+          photoOffsetX: photoAdjust.offsetX,
+          photoOffsetY: photoAdjust.offsetY,
+          photoScale: photoAdjust.scale,
+          logoScale,
+          fontScale,
         });
         if (!cancelled) setPreviewUrl(canvas.toDataURL("image/png"));
       } catch (err) {
@@ -141,6 +157,11 @@ export function PostGenerator({
     siteImages,
     contacts,
     activeTemplate.needsPhoto,
+    photoAdjust.offsetX,
+    photoAdjust.offsetY,
+    photoAdjust.scale,
+    logoScale,
+    fontScale,
   ]);
 
   function handleDownload() {
@@ -162,10 +183,96 @@ export function PostGenerator({
           <img
             src={previewUrl}
             alt="Prévia do post"
-            className={`h-auto rounded-xl ring-1 ring-black/10 ${
-              format === "story" ? "w-full max-w-[260px]" : "w-full max-w-[420px]"
-            }`}
+            onPointerDown={activeTemplate.needsPhoto ? photoAdjust.onDragStart : undefined}
+            onPointerMove={activeTemplate.needsPhoto ? photoAdjust.onDragMove : undefined}
+            onPointerUp={activeTemplate.needsPhoto ? photoAdjust.onDragEnd : undefined}
+            onPointerCancel={activeTemplate.needsPhoto ? photoAdjust.onDragEnd : undefined}
+            className={`h-auto touch-none rounded-xl ring-1 ring-black/10 ${
+              activeTemplate.needsPhoto ? "cursor-move select-none" : ""
+            } ${format === "story" ? "w-full max-w-[260px]" : "w-full max-w-[420px]"}`}
           />
+        )}
+        {activeTemplate.needsPhoto && previewUrl && (
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={photoAdjust.zoomOut}
+              className="h-8 w-8 rounded-full bg-black/5 text-sm font-bold text-nd-graphite hover:bg-black/10"
+              aria-label="Diminuir zoom da foto"
+            >
+              −
+            </button>
+            <button
+              type="button"
+              onClick={photoAdjust.zoomIn}
+              className="h-8 w-8 rounded-full bg-black/5 text-sm font-bold text-nd-graphite hover:bg-black/10"
+              aria-label="Aumentar zoom da foto"
+            >
+              +
+            </button>
+            <button
+              type="button"
+              onClick={photoAdjust.reset}
+              className="rounded-full bg-black/5 px-3 py-1 text-xs font-medium text-nd-graphite hover:bg-black/10"
+            >
+              Centralizar
+            </button>
+            <span className="text-xs text-nd-graphite/50">Arraste a imagem pra ajustar</span>
+          </div>
+        )}
+        {previewUrl && (
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-nd-graphite/60">Logo</span>
+              <button
+                type="button"
+                onClick={() => setLogoScale((s) => Math.max(0.6, +(s - 0.1).toFixed(2)))}
+                className="h-7 w-7 rounded-full bg-black/5 text-sm font-bold text-nd-graphite hover:bg-black/10"
+                aria-label="Diminuir tamanho da logo"
+              >
+                −
+              </button>
+              <button
+                type="button"
+                onClick={() => setLogoScale((s) => Math.min(1.8, +(s + 0.1).toFixed(2)))}
+                className="h-7 w-7 rounded-full bg-black/5 text-sm font-bold text-nd-graphite hover:bg-black/10"
+                aria-label="Aumentar tamanho da logo"
+              >
+                +
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-nd-graphite/60">Letra</span>
+              <button
+                type="button"
+                onClick={() => setFontScale((s) => Math.max(0.6, +(s - 0.1).toFixed(2)))}
+                className="h-7 w-7 rounded-full bg-black/5 text-sm font-bold text-nd-graphite hover:bg-black/10"
+                aria-label="Diminuir tamanho da letra"
+              >
+                −
+              </button>
+              <button
+                type="button"
+                onClick={() => setFontScale((s) => Math.min(1.8, +(s + 0.1).toFixed(2)))}
+                className="h-7 w-7 rounded-full bg-black/5 text-sm font-bold text-nd-graphite hover:bg-black/10"
+                aria-label="Aumentar tamanho da letra"
+              >
+                +
+              </button>
+            </div>
+            {(logoScale !== 1 || fontScale !== 1) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setLogoScale(1);
+                  setFontScale(1);
+                }}
+                className="rounded-full bg-black/5 px-3 py-1 text-xs font-medium text-nd-graphite hover:bg-black/10"
+              >
+                Tamanho padrão
+              </button>
+            )}
+          </div>
         )}
         {rendering && (
           <p className="mt-3 text-xs text-nd-graphite/50">Gerando prévia…</p>
