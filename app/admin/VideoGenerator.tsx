@@ -23,6 +23,7 @@ import {
 import { PhotoPicker, resolvePhotoSrc, type PhotoSource } from "./PhotoPicker";
 import { shareOrDownloadFile } from "./shareFile";
 import { usePhotoAdjust, useLogoAdjust } from "./usePhotoAdjust";
+import { formatPhoneBR } from "./phoneFormat";
 
 const DURATION_S = 5.5;
 // Limite de segurança bem alto (não é um limite "prático") — só pra
@@ -876,7 +877,7 @@ export function VideoGenerator({
             <Field
               label="Telefone (WhatsApp)"
               value={postPhone}
-              onChange={setPostPhone}
+              onChange={(v) => setPostPhone(formatPhoneBR(v))}
               placeholder="(63) 99999-9999"
               disabled={recording}
             />

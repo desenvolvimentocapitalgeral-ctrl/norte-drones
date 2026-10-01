@@ -506,6 +506,7 @@ function drawTextStack(
     titleSize?: number;
     highlightSize?: number;
     align?: "left" | "center";
+    fontScale?: number;
   }
 ): number {
   let cursorY = startY;
@@ -521,6 +522,7 @@ function drawTextStack(
     titleSize = 62,
     highlightSize = 74,
     align = "left",
+    fontScale = 1,
   } = opts;
   ctx.textAlign = align;
   const tx = align === "center" ? x + maxW / 2 : x;
@@ -530,16 +532,16 @@ function drawTextStack(
     ctx.fillStyle = kickerColor;
     wrapText(ctx, kicker.toUpperCase(), maxW).forEach((line) => {
       ctx.fillText(line, tx, cursorY);
-      cursorY += 36;
+      cursorY += (36) * fontScale;
     });
-    cursorY += 18;
+    cursorY += (18) * fontScale;
   }
   if (title) {
     ctx.font = `800 ${titleSize}px Montserrat, sans-serif`;
     ctx.fillStyle = titleColor;
     wrapText(ctx, title.toUpperCase(), maxW).forEach((line) => {
       ctx.fillText(line, tx, cursorY);
-      cursorY += titleSize * 0.96;
+      cursorY += (titleSize * 0.96) * fontScale;
     });
   }
   if (highlight) {
@@ -547,16 +549,16 @@ function drawTextStack(
     ctx.fillStyle = highlightColor;
     wrapText(ctx, highlight.toUpperCase(), maxW).forEach((line) => {
       ctx.fillText(line, tx, cursorY);
-      cursorY += highlightSize * 0.92;
+      cursorY += (highlightSize * 0.92) * fontScale;
     });
   }
   if (body) {
-    cursorY += 14;
+    cursorY += (14) * fontScale;
     ctx.font = "500 27px Montserrat, sans-serif";
     ctx.fillStyle = bodyColor;
     wrapText(ctx, body, maxW).forEach((line) => {
       ctx.fillText(line, tx, cursorY);
-      cursorY += 37;
+      cursorY += (37) * fontScale;
     });
   }
   ctx.textAlign = "left";
@@ -764,7 +766,7 @@ export function drawWhatsappFotoOverlay(
     ctx.font = "800 34px Montserrat, sans-serif";
     ctx.fillStyle = "#ffffff";
     ctx.fillText(contactPhone, contentX + iconR * 2 + 16, rowY + 12);
-    rowY += 66;
+    rowY += (66) * fontScale;
   }
 
   if (contactInstagram) {
@@ -934,9 +936,9 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.fillStyle = "#ffffff";
       wrapText(ctx, kicker.toUpperCase(), maxTextW).forEach((line) => {
         ctx.fillText(line, leftMargin, cursorY);
-        cursorY += 38;
+        cursorY += (38) * fontScale;
       });
-      cursorY += 44;
+      cursorY += (44) * fontScale;
     }
 
     if (title) {
@@ -944,7 +946,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.fillStyle = "#ffffff";
       wrapText(ctx, title.toUpperCase(), maxTextW).forEach((line) => {
         ctx.fillText(line, leftMargin, cursorY);
-        cursorY += 72;
+        cursorY += (72) * fontScale;
       });
     }
 
@@ -953,25 +955,24 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.fillStyle = COLORS.lime;
       wrapText(ctx, highlight.toUpperCase(), maxTextW).forEach((line) => {
         ctx.fillText(line, leftMargin, cursorY);
-        cursorY += 82;
+        cursorY += (82) * fontScale;
       });
     }
 
-    cursorY += 14;
+    cursorY += (14) * fontScale;
     ctx.strokeStyle = COLORS.lime;
     ctx.lineWidth = 6;
     ctx.beginPath();
     ctx.moveTo(leftMargin, cursorY);
     ctx.lineTo(leftMargin + 110, cursorY);
     ctx.stroke();
-    cursorY += 44;
-
+    cursorY += (44) * fontScale;
     if (body) {
       ctx.font = "500 30px Montserrat, sans-serif";
       ctx.fillStyle = "rgba(255,255,255,0.92)";
       wrapText(ctx, body, maxTextW).forEach((line) => {
         ctx.fillText(line, leftMargin, cursorY);
-        cursorY += 40;
+        cursorY += (40) * fontScale;
       });
     }
 
@@ -1063,9 +1064,9 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.fillStyle = "#ffffff";
       wrapText(ctx, kicker.toUpperCase(), maxTextW).forEach((line) => {
         ctx.fillText(line, textX, cursorY);
-        cursorY += 38;
+        cursorY += (38) * fontScale;
       });
-      cursorY += 44;
+      cursorY += (44) * fontScale;
     }
 
     if (title) {
@@ -1073,7 +1074,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.fillStyle = "#ffffff";
       wrapText(ctx, title.toUpperCase(), maxTextW).forEach((line) => {
         ctx.fillText(line, textX, cursorY);
-        cursorY += 72;
+        cursorY += (72) * fontScale;
       });
     }
 
@@ -1082,25 +1083,24 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.fillStyle = COLORS.lime;
       wrapText(ctx, highlight.toUpperCase(), maxTextW).forEach((line) => {
         ctx.fillText(line, textX, cursorY);
-        cursorY += 82;
+        cursorY += (82) * fontScale;
       });
     }
 
-    cursorY += 14;
+    cursorY += (14) * fontScale;
     ctx.strokeStyle = COLORS.lime;
     ctx.lineWidth = 6;
     ctx.beginPath();
     ctx.moveTo(textX, cursorY);
     ctx.lineTo(textX - 110, cursorY);
     ctx.stroke();
-    cursorY += 44;
-
+    cursorY += (44) * fontScale;
     if (body) {
       ctx.font = "500 30px Montserrat, sans-serif";
       ctx.fillStyle = "rgba(255,255,255,0.92)";
       wrapText(ctx, body, maxTextW).forEach((line) => {
         ctx.fillText(line, textX, cursorY);
-        cursorY += 40;
+        cursorY += (40) * fontScale;
       });
     }
 
@@ -1224,7 +1224,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.fillText(label, leftMargin + padX, boxY + boxH / 2 + 1);
       ctx.textBaseline = "alphabetic";
       ctx.shadowColor = "rgba(0,0,0,0.55)";
-      cursorY += 50;
+      cursorY += (50) * fontScale;
     }
 
     if (title) {
@@ -1232,7 +1232,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.fillStyle = "#ffffff";
       wrapText(ctx, title.toUpperCase(), maxTextW).forEach((line) => {
         ctx.fillText(line, leftMargin, cursorY);
-        cursorY += 74;
+        cursorY += (74) * fontScale;
       });
     }
 
@@ -1241,7 +1241,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.fillStyle = COLORS.lime;
       wrapText(ctx, highlight.toUpperCase(), maxTextW).forEach((line) => {
         ctx.fillText(line, leftMargin, cursorY);
-        cursorY += 80;
+        cursorY += (80) * fontScale;
       });
     }
 
@@ -1342,9 +1342,9 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.fillStyle = "#ffffff";
       wrapText(ctx, kicker.toUpperCase(), maxTextW).forEach((line) => {
         ctx.fillText(line, leftMargin, cursorY);
-        cursorY += 36;
+        cursorY += (36) * fontScale;
       });
-      cursorY += 20;
+      cursorY += (20) * fontScale;
     }
 
     if (title) {
@@ -1352,7 +1352,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.fillStyle = "#ffffff";
       wrapText(ctx, title.toUpperCase(), maxTextW).forEach((line) => {
         ctx.fillText(line, leftMargin, cursorY);
-        cursorY += 58;
+        cursorY += (58) * fontScale;
       });
     }
 
@@ -1361,7 +1361,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.fillStyle = COLORS.lime;
       wrapText(ctx, highlight.toUpperCase(), maxTextW).forEach((line) => {
         ctx.fillText(line, leftMargin, cursorY);
-        cursorY += 82;
+        cursorY += (82) * fontScale;
       });
     }
 
@@ -1471,6 +1471,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       align: "center",
       titleSize: 56,
       highlightSize: 66,
+    fontScale,
     });
 
     cursorY = drawBadgeRow(ctx, badges, leftMargin, cursorY + 32, maxW, { radius: 22 });
@@ -1482,7 +1483,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.fillStyle = "#ffffff";
       ctx.fillText(location, W / 2, footY);
       ctx.textAlign = "left";
-      footY += 48;
+      footY += (48) * fontScale;
     }
     if (signature) {
       ctx.textAlign = "center";
@@ -1527,7 +1528,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
     const leftMargin = 60;
     const maxW = W - leftMargin * 2 - 40;
-    let cursorY = drawTextStack(ctx, leftMargin, splitY + 60, maxW, { kicker, title, highlight });
+    let cursorY = drawTextStack(ctx, leftMargin, splitY + 60, maxW, { kicker, title, highlight , fontScale});
 
     const footerH = location ? 60 : 0;
     cursorY = drawBadgeRow(ctx, badges, leftMargin, cursorY + 40, maxW);
@@ -1584,6 +1585,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       title,
       highlight,
       body,
+    fontScale,
     });
 
     const footerH = 90;
@@ -1666,6 +1668,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       align: "center",
       titleSize: 54,
       highlightSize: 62,
+    fontScale,
     });
 
     cursorY = drawBadgeRow(ctx, badges, leftMargin, cursorY + 30, maxW, { radius: 22 });
@@ -1679,7 +1682,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.fillStyle = "#ffffff";
       ctx.fillText(location, W / 2, footY);
       ctx.textAlign = "left";
-      footY += 46;
+      footY += (46) * fontScale;
     }
     if (signature) {
       ctx.textAlign = "center";
@@ -1727,6 +1730,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       title,
       highlight,
       body,
+    fontScale,
     });
 
     cursorY = drawBadgeRow(ctx, badges, leftMargin, cursorY + 30, maxW, { radius: 22 });
@@ -1800,7 +1804,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
     const leftMargin = 60;
     const maxW = W - leftMargin * 2 - 40;
-    let cursorY = drawTextStack(ctx, leftMargin, H * 0.66, maxW, { kicker, title });
+    let cursorY = drawTextStack(ctx, leftMargin, H * 0.66, maxW, { kicker, title , fontScale});
 
     const footerH = 90;
     cursorY = drawBadgeRow(ctx, badges, leftMargin, cursorY + 34, maxW);
@@ -1868,6 +1872,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       title,
       highlight,
       body,
+    fontScale,
     });
 
     const footerH = 90;
@@ -1942,7 +1947,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
     const leftMargin = 70;
     const maxW = W - leftMargin * 2;
-    const cursorY = drawTextStack(ctx, leftMargin, H * 0.28, maxW, { kicker, title, highlight });
+    const cursorY = drawTextStack(ctx, leftMargin, H * 0.28, maxW, { kicker, title, highlight , fontScale});
 
     const steps = badges.filter(Boolean).slice(0, 3);
     let stepY = cursorY + 60;
@@ -1972,7 +1977,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
         ctx.lineTo(leftMargin + r, stepY + 130 - 6);
         ctx.stroke();
       }
-      stepY += 130;
+      stepY += (130) * fontScale;
     });
 
     if (location) {
@@ -2021,6 +2026,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       title,
       highlight,
       highlightSize: 96,
+    fontScale,
     });
 
     const stats = badges.filter(Boolean).slice(0, 3);
@@ -2091,26 +2097,26 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.fillStyle = COLORS.lime;
       wrapText(ctx, kicker.toUpperCase(), maxW).forEach((line) => {
         ctx.fillText(line, leftMargin, cursorY);
-        cursorY += 34;
+        cursorY += (34) * fontScale;
       });
-      cursorY += 20;
+      cursorY += (20) * fontScale;
     }
     if (body) {
       ctx.font = "600 40px Montserrat, sans-serif";
       ctx.fillStyle = "#ffffff";
       wrapText(ctx, body, maxW).forEach((line) => {
         ctx.fillText(line, leftMargin, cursorY);
-        cursorY += 52;
+        cursorY += (52) * fontScale;
       });
     }
-    cursorY += 20;
+    cursorY += (20) * fontScale;
     ctx.strokeStyle = COLORS.lime;
     ctx.lineWidth = 5;
     ctx.beginPath();
     ctx.moveTo(leftMargin, cursorY);
     ctx.lineTo(leftMargin + 90, cursorY);
     ctx.stroke();
-    cursorY += 40;
+    cursorY += (40) * fontScale;
     if (signature) {
       ctx.font = "700 36px Caveat, cursive";
       ctx.fillStyle = COLORS.lime;
@@ -2158,6 +2164,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       titleColor: COLORS.graphite,
       highlightColor: COLORS.green,
       bodyColor: "rgba(37,51,57,0.75)",
+    fontScale,
     });
 
     const activeBadges = badges.filter(Boolean).slice(0, 3);
@@ -2227,16 +2234,16 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.fillStyle = COLORS.greenDark;
       wrapText(ctx, kicker.toUpperCase(), maxW).forEach((line) => {
         ctx.fillText(line, leftMargin, cursorY);
-        cursorY += 36;
+        cursorY += (36) * fontScale;
       });
-      cursorY += 60;
+      cursorY += (60) * fontScale;
     }
     if (title) {
       ctx.font = "800 96px Montserrat, sans-serif";
       ctx.fillStyle = COLORS.greenDark;
       wrapText(ctx, title.toUpperCase(), maxW).forEach((line) => {
         ctx.fillText(line, leftMargin, cursorY);
-        cursorY += 90;
+        cursorY += (90) * fontScale;
       });
     }
     if (highlight) {
@@ -2244,7 +2251,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.fillStyle = "#ffffff";
       wrapText(ctx, highlight.toUpperCase(), maxW).forEach((line) => {
         ctx.fillText(line, leftMargin, cursorY);
-        cursorY += 90;
+        cursorY += (90) * fontScale;
       });
     }
 
@@ -2327,16 +2334,16 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     let cursorY = H * 0.46 + 72;
     titleLines.forEach((line) => {
       ctx.fillText(line, 70, cursorY);
-      cursorY += 84;
+      cursorY += (84) * fontScale;
     });
 
     if (subtitle) {
-      cursorY += 16;
+      cursorY += (16) * fontScale;
       ctx.font = "500 38px Montserrat, sans-serif";
       ctx.fillStyle = "rgba(255,255,255,0.88)";
       wrapText(ctx, subtitle, maxW).forEach((line) => {
         ctx.fillText(line, 70, cursorY);
-        cursorY += 52;
+        cursorY += (52) * fontScale;
       });
     }
     ctx.restore();
@@ -2358,16 +2365,16 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     let cursorY = H * 0.56;
     lines.forEach((line) => {
       ctx.fillText(line, W / 2, cursorY);
-      cursorY += 80;
+      cursorY += (80) * fontScale;
     });
 
     if (subtitle) {
       ctx.font = "500 40px Montserrat, sans-serif";
       ctx.fillStyle = "rgba(255,255,255,0.85)";
-      cursorY += 16;
+      cursorY += (16) * fontScale;
       wrapText(ctx, subtitle, W - 200).forEach((line) => {
         ctx.fillText(line, W / 2, cursorY);
-        cursorY += 52;
+        cursorY += (52) * fontScale;
       });
     }
 
@@ -2430,7 +2437,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     let titleY = 96;
     titleLines.forEach((line) => {
       ctx.fillText(line, W / 2, titleY);
-      titleY += 84;
+      titleY += (84) * fontScale;
     });
     ctx.shadowColor = "transparent";
     ctx.shadowBlur = 0;
@@ -2463,7 +2470,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.fillStyle = "#ffffff";
       ctx.fillText(label, startX + checkW, listY);
       ctx.textAlign = "center";
-      listY += 46;
+      listY += (46) * fontScale;
     });
 
     // telefone, logo abaixo da lista, em destaque
@@ -2491,16 +2498,16 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     let cursorY = H * 0.05 + 150;
     wrapText(ctx, title || "Fale com a gente pelo WhatsApp", W - 160).forEach((line) => {
       ctx.fillText(line, W / 2, cursorY);
-      cursorY += 60;
+      cursorY += (60) * fontScale;
     });
 
     if (subtitle) {
       ctx.font = "500 30px Montserrat, sans-serif";
       ctx.fillStyle = "rgba(255,255,255,0.85)";
-      cursorY += 10;
+      cursorY += (10) * fontScale;
       wrapText(ctx, subtitle, W - 200).forEach((line) => {
         ctx.fillText(line, W / 2, cursorY);
-        cursorY += 40;
+        cursorY += (40) * fontScale;
       });
     }
 
@@ -2520,13 +2527,12 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     ctx.font = "600 28px Montserrat, sans-serif";
     ctx.fillStyle = "rgba(255,255,255,0.8)";
     ctx.fillText("Aponte a câmera do celular pro QR code", W / 2, footY);
-    footY += 58;
-
+    footY += (58) * fontScale;
     if (contactPhone) {
       ctx.font = "800 44px Montserrat, sans-serif";
       ctx.fillStyle = COLORS.lime;
       ctx.fillText(contactPhone, W / 2, footY);
-      footY += 52;
+      footY += (52) * fontScale;
     }
     if (contactInstagram) {
       ctx.font = "600 32px Montserrat, sans-serif";
@@ -2635,16 +2641,16 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
   ctx.fillStyle = "#ffffff";
   titleLines.forEach((line) => {
     ctx.fillText(line, 70, cursorY);
-    cursorY += titleLineHeight;
+    cursorY += (titleLineHeight) * fontScale;
   });
 
   if (subtitleLines.length) {
-    cursorY += 12;
+    cursorY += (12) * fontScale;
     ctx.font = "500 36px Montserrat, sans-serif";
     ctx.fillStyle = "rgba(255,255,255,0.88)";
     subtitleLines.forEach((line) => {
       ctx.fillText(line, 70, cursorY);
-      cursorY += subtitleLineHeight;
+      cursorY += (subtitleLineHeight) * fontScale;
     });
   }
   ctx.restore();

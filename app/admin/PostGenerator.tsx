@@ -19,6 +19,7 @@ import {
 import { PhotoPicker, resolvePhotoSrc, type PhotoSource } from "./PhotoPicker";
 import { shareOrDownloadFile, dataUrlToBlob } from "./shareFile";
 import { usePhotoAdjust, useLogoAdjust } from "./usePhotoAdjust";
+import { formatPhoneBR } from "./phoneFormat";
 
 export function PostGenerator({
   siteImages,
@@ -447,7 +448,7 @@ export function PostGenerator({
             <Field
               label="Telefone (WhatsApp)"
               value={postPhone}
-              onChange={setPostPhone}
+              onChange={(v) => setPostPhone(formatPhoneBR(v))}
               placeholder="(63) 99999-9999"
             />
             {postPhone && (

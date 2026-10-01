@@ -6,6 +6,7 @@ import type { SiteContacts } from "@/lib/content-store";
 import { SITE_IMAGE_FIELDS, SiteImageKey } from "@/lib/site-image-fields";
 import { PostGenerator } from "./PostGenerator";
 import { VideoGenerator } from "./VideoGenerator";
+import { formatPhoneBR } from "./phoneFormat";
 
 const EMPTY: SiteContacts = {
   whatsappNumber: "",
@@ -141,7 +142,7 @@ export default function AdminDashboard({
           label="Telefone"
           placeholder="(63) 99999-9999"
           value={form.phone}
-          onChange={(v) => update("phone", v)}
+          onChange={(v) => update("phone", formatPhoneBR(v))}
         />
         <Field
           label="E-mail"
