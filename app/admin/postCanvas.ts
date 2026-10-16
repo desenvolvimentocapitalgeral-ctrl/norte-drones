@@ -120,11 +120,11 @@ export const RICH_FIELD_TEMPLATES: TemplateKey[] = [
 ];
 
 export const COLORS = {
-  greenDark: "#0B3D2E",
-  green: "#2E7D32",
-  lime: "#A8D83B",
-  amber: "#F39A22",
-  graphite: "#253339",
+  greenDark: "#123F24",
+  green: "#2F6B3F",
+  lime: "#D9BE82",
+  amber: "#C6A35A",
+  graphite: "#1F2B24",
 };
 
 /**
@@ -184,7 +184,7 @@ export async function loadQrCode(link: string): Promise<HTMLImageElement> {
   const dataUrl = await QRCode.toDataURL(link, {
     margin: 1,
     width: 512,
-    color: { dark: "#0B3D2E", light: "#FFFFFF" },
+    color: { dark: "#123F24", light: "#FFFFFF" },
   });
   return loadImage(dataUrl);
 }
@@ -734,7 +734,7 @@ export function drawWhatsappFotoOverlay(
 
   // cartão translúcido no rodapé, estilo "cartão de visita"
   const cardW = W - cardMargin * 2;
-  ctx.fillStyle = "rgba(11,61,46,0.82)";
+  ctx.fillStyle = "rgba(18, 63, 36,0.82)";
   roundRect(ctx, cardMargin, cardY, cardW, cardH, 26);
   ctx.fill();
   ctx.strokeStyle = "rgba(255,255,255,0.2)";
@@ -809,7 +809,7 @@ export function drawContactCard(
   const cardY = H - cardH - 56 + offsetY;
 
   ctx.save();
-  ctx.fillStyle = "rgba(11,61,46,0.88)";
+  ctx.fillStyle = "rgba(18, 63, 36,0.88)";
   roundRect(ctx, cardX, cardY, cardW, cardH, 24);
   ctx.fill();
   ctx.strokeStyle = "rgba(255,255,255,0.2)";
@@ -907,9 +907,9 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     // sem cobrir a foto inteira (como nos exemplos de campanha).
     const splitX = W * 0.62;
     const grad = ctx.createLinearGradient(0, 0, splitX + 140, 0);
-    grad.addColorStop(0, "rgba(11,61,46,0.97)");
-    grad.addColorStop(0.72, "rgba(11,61,46,0.9)");
-    grad.addColorStop(1, "rgba(11,61,46,0)");
+    grad.addColorStop(0, "rgba(18, 63, 36,0.97)");
+    grad.addColorStop(0.72, "rgba(18, 63, 36,0.9)");
+    grad.addColorStop(1, "rgba(18, 63, 36,0)");
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.moveTo(0, 0);
@@ -1034,9 +1034,9 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     // mesmo painel diagonal da campanha, espelhado pro lado direito.
     const panelStart = W * 0.38;
     const grad = ctx.createLinearGradient(W, 0, panelStart - 140, 0);
-    grad.addColorStop(0, "rgba(11,61,46,0.97)");
-    grad.addColorStop(0.72, "rgba(11,61,46,0.9)");
-    grad.addColorStop(1, "rgba(11,61,46,0)");
+    grad.addColorStop(0, "rgba(18, 63, 36,0.97)");
+    grad.addColorStop(0.72, "rgba(18, 63, 36,0.9)");
+    grad.addColorStop(1, "rgba(18, 63, 36,0)");
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.moveTo(W, 0);
@@ -1166,8 +1166,8 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     // gradiente esfumaçado no topo — só o suficiente pra dar legibilidade,
     // sem esconder a foto/vídeo de fundo.
     const topOverlay = ctx.createLinearGradient(0, 0, 0, H * 0.5);
-    topOverlay.addColorStop(0, "rgba(11,61,46,0.55)");
-    topOverlay.addColorStop(1, "rgba(11,61,46,0)");
+    topOverlay.addColorStop(0, "rgba(18, 63, 36,0.55)");
+    topOverlay.addColorStop(1, "rgba(18, 63, 36,0)");
     ctx.fillStyle = topOverlay;
     ctx.fillRect(0, 0, W, H * 0.5);
 
@@ -1252,9 +1252,9 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     // continua visível por trás.
     const footerH = 150;
     const footerGrad = ctx.createLinearGradient(0, H - footerH, 0, H);
-    footerGrad.addColorStop(0, "rgba(11,61,46,0)");
-    footerGrad.addColorStop(0.4, "rgba(11,61,46,0.55)");
-    footerGrad.addColorStop(1, "rgba(11,61,46,0.8)");
+    footerGrad.addColorStop(0, "rgba(18, 63, 36,0)");
+    footerGrad.addColorStop(0.4, "rgba(18, 63, 36,0.55)");
+    footerGrad.addColorStop(1, "rgba(18, 63, 36,0.8)");
     ctx.fillStyle = footerGrad;
     ctx.fillRect(0, H - footerH, W, footerH);
     ctx.fillStyle = COLORS.lime;
@@ -1311,14 +1311,14 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     // quase sem véu: só uma leve névoa nas bordas pra caber o texto, a
     // foto/vídeo continua praticamente inteira à mostra.
     const topFog = ctx.createLinearGradient(0, 0, 0, H * 0.32);
-    topFog.addColorStop(0, "rgba(11,61,46,0.4)");
-    topFog.addColorStop(1, "rgba(11,61,46,0)");
+    topFog.addColorStop(0, "rgba(18, 63, 36,0.4)");
+    topFog.addColorStop(1, "rgba(18, 63, 36,0)");
     ctx.fillStyle = topFog;
     ctx.fillRect(0, 0, W, H * 0.32);
 
     const bottomFog = ctx.createLinearGradient(0, H * 0.62, 0, H);
-    bottomFog.addColorStop(0, "rgba(11,61,46,0)");
-    bottomFog.addColorStop(1, "rgba(11,61,46,0.7)");
+    bottomFog.addColorStop(0, "rgba(18, 63, 36,0)");
+    bottomFog.addColorStop(1, "rgba(18, 63, 36,0.7)");
     ctx.fillStyle = bottomFog;
     ctx.fillRect(0, H * 0.62, W, H * 0.38);
 
@@ -1394,8 +1394,8 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
     // faixa bem fina e translúcida no rodapé, só pra localização/assinatura
     const footerGrad = ctx.createLinearGradient(0, H - footerH, 0, H);
-    footerGrad.addColorStop(0, "rgba(11,61,46,0)");
-    footerGrad.addColorStop(1, "rgba(11,61,46,0.55)");
+    footerGrad.addColorStop(0, "rgba(18, 63, 36,0)");
+    footerGrad.addColorStop(1, "rgba(18, 63, 36,0.55)");
     ctx.fillStyle = footerGrad;
     ctx.fillRect(0, H - footerH, W, footerH);
 
@@ -1507,9 +1507,9 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
     const splitY = H * 0.58;
     const grad = ctx.createLinearGradient(0, H, 0, splitY - 160);
-    grad.addColorStop(0, "rgba(11,61,46,0.97)");
-    grad.addColorStop(0.75, "rgba(11,61,46,0.92)");
-    grad.addColorStop(1, "rgba(11,61,46,0)");
+    grad.addColorStop(0, "rgba(18, 63, 36,0.97)");
+    grad.addColorStop(0.75, "rgba(18, 63, 36,0.92)");
+    grad.addColorStop(1, "rgba(18, 63, 36,0)");
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.moveTo(0, H);
@@ -1763,8 +1763,8 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
     }
 
     const bottomFog = ctx.createLinearGradient(0, H * 0.5, 0, H);
-    bottomFog.addColorStop(0, "rgba(11,61,46,0)");
-    bottomFog.addColorStop(1, "rgba(11,61,46,0.85)");
+    bottomFog.addColorStop(0, "rgba(18, 63, 36,0)");
+    bottomFog.addColorStop(1, "rgba(18, 63, 36,0.85)");
     ctx.fillStyle = bottomFog;
     ctx.fillRect(0, H * 0.5, W, H * 0.5);
 
@@ -1838,9 +1838,9 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
     const splitX = W * 0.62;
     const grad = ctx.createLinearGradient(0, 0, splitX + 140, 0);
-    grad.addColorStop(0, "rgba(11,61,46,0.95)");
-    grad.addColorStop(0.72, "rgba(11,61,46,0.88)");
-    grad.addColorStop(1, "rgba(11,61,46,0)");
+    grad.addColorStop(0, "rgba(18, 63, 36,0.95)");
+    grad.addColorStop(0.72, "rgba(18, 63, 36,0.88)");
+    grad.addColorStop(1, "rgba(18, 63, 36,0)");
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.moveTo(0, 0);
@@ -2134,14 +2134,14 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
   }
 
   if (template === "linhas") {
-    ctx.fillStyle = "#F7F5EF";
+    ctx.fillStyle = "#F4F1E8";
     ctx.fillRect(0, 0, W, H);
 
     ctx.save();
     ctx.globalAlpha = reveal;
     ctx.translate(0, (1 - reveal) * 26);
 
-    ctx.strokeStyle = "rgba(37,51,57,0.15)";
+    ctx.strokeStyle = "rgba(31,43,36,0.15)";
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(60, 170);
@@ -2163,7 +2163,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       kickerColor: COLORS.green,
       titleColor: COLORS.graphite,
       highlightColor: COLORS.green,
-      bodyColor: "rgba(37,51,57,0.75)",
+      bodyColor: "rgba(31,43,36,0.75)",
     fontScale,
     });
 
@@ -2178,7 +2178,7 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
       ctx.fillText(label, leftMargin + 30, rowY);
     });
 
-    ctx.strokeStyle = "rgba(37,51,57,0.15)";
+    ctx.strokeStyle = "rgba(31,43,36,0.15)";
     ctx.beginPath();
     ctx.moveTo(60, H - 90);
     ctx.lineTo(W - 60, H - 90);
@@ -2409,16 +2409,16 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
 
     const topH = H * 0.34;
     const topOverlay = ctx.createLinearGradient(0, 0, 0, topH);
-    topOverlay.addColorStop(0, "rgba(11,61,46,0.85)");
-    topOverlay.addColorStop(1, "rgba(11,61,46,0)");
+    topOverlay.addColorStop(0, "rgba(18, 63, 36,0.85)");
+    topOverlay.addColorStop(1, "rgba(18, 63, 36,0)");
     ctx.fillStyle = topOverlay;
     ctx.fillRect(0, 0, W, topH);
 
     const bottomH = H * 0.4;
     const bottomOverlay = ctx.createLinearGradient(0, H - bottomH, 0, H);
-    bottomOverlay.addColorStop(0, "rgba(11,61,46,0)");
-    bottomOverlay.addColorStop(0.22, "rgba(11,61,46,0.9)");
-    bottomOverlay.addColorStop(1, "rgba(11,61,46,0.97)");
+    bottomOverlay.addColorStop(0, "rgba(18, 63, 36,0)");
+    bottomOverlay.addColorStop(0.22, "rgba(18, 63, 36,0.9)");
+    bottomOverlay.addColorStop(1, "rgba(18, 63, 36,0.97)");
     ctx.fillStyle = bottomOverlay;
     ctx.fillRect(0, H - bottomH, W, bottomH);
 
@@ -2583,8 +2583,8 @@ export function draw(ctx: CanvasRenderingContext2D, opts: DrawOpts) {
   }
 
   const overlay = ctx.createLinearGradient(0, H * 0.35, 0, H);
-  overlay.addColorStop(0, "rgba(11,61,46,0)");
-  overlay.addColorStop(1, "rgba(11,61,46,0.95)");
+  overlay.addColorStop(0, "rgba(18, 63, 36,0)");
+  overlay.addColorStop(1, "rgba(18, 63, 36,0.95)");
   ctx.fillStyle = overlay;
   ctx.fillRect(0, 0, W, H);
 

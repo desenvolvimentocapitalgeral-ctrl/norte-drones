@@ -21,7 +21,8 @@ export const metadata: Metadata = {
     "Palmas",
   ],
   icons: {
-    icon: "/favicon.svg",
+    icon: "/icon.png",
+    apple: "/apple-icon.png",
   },
   openGraph: {
     title: "Norte Drones | Pulverização e Aplicação Agrícola de Precisão",
@@ -31,7 +32,7 @@ export const metadata: Metadata = {
     siteName: "Norte Drones",
     locale: "pt_BR",
     type: "website",
-    images: [{ url: "/images/og-cover.jpg", width: 1263, height: 720 }],
+    images: [{ url: "/images/og-cover.jpg", width: 1200, height: 667 }],
   },
 };
 

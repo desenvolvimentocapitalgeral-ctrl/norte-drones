@@ -3,12 +3,12 @@
 @tailwind utilities;
 
 :root {
-  --nd-green-dark: #0b3d2e;
-  --nd-green: #2e7d32;
-  --nd-green-lime: #a8d83b;
-  --nd-amber: #f39a22;
-  --nd-graphite: #253339;
-  --nd-mist: #f5f7f7;
+  --nd-green-dark: #123F24;
+  --nd-green: #2F6B3F;
+  --nd-green-lime: #D9BE82;
+  --nd-amber: #C6A35A;
+  --nd-graphite: #1F2B24;
+  --nd-mist: #F4F1E8;
 }
 
 html {
