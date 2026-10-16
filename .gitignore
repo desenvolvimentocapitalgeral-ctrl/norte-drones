@@ -30,3 +30,4 @@ yarn-error.log*
 
 # runtime admin content (local dev persistence, not meant for git)
 /tmp/site-content.runtime.json
+.claude/

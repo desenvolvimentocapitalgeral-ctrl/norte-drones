@@ -14,9 +14,9 @@ export async function Footer({ logoUrl }: { logoUrl: string }) {
             src={logoUrl}
             unoptimized={logoUrl.startsWith("http")}
             alt="Norte Drones"
-            width={160}
-            height={48}
-            className="h-10 w-auto object-contain"
+            width={200}
+            height={65}
+            className="h-14 w-auto object-contain"
           />
           <nav className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
             <a href="#sobre" className="hover:text-white">Sobre</a>

@@ -53,10 +53,10 @@ export function Header({
             src={scrolled ? logoUrl : logoUrlOnDark}
             unoptimized={(scrolled ? logoUrl : logoUrlOnDark).startsWith("http")}
             alt="Norte Drones"
-            width={168}
-            height={44}
+            width={190}
+            height={62}
             priority
-            className="h-8 w-auto object-contain sm:h-9"
+            className="h-10 w-auto object-contain sm:h-12"
           />
         </a>
 

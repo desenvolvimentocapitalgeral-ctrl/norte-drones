@@ -1,14 +1,14 @@
 import "server-only";
-import { head } from "@vercel/blob";
+import { getSiteStore } from "@/lib/blob-store";
 import { SITE_IMAGE_FIELDS, SiteImageKey } from "@/lib/site-image-fields";
 
 export type { SiteImageKey };
 
-// Caminho fixo no Vercel Blob para cada imagem editável pelo /admin.
-// Upload sempre sobrescreve o mesmo pathname (addRandomSuffix: false), então
-// não precisamos guardar a URL atual em nenhum lugar — o próprio Blob é a
-// fonte da verdade. Sem Blob configurado (ou antes do primeiro upload),
-// cai no arquivo estático original em /public.
+// Chave fixa no Netlify Blobs para cada imagem editável pelo /admin.
+// Upload sempre sobrescreve a mesma chave, então não precisamos guardar a
+// URL atual em nenhum lugar — o próprio Blob é a fonte da verdade. Fora do
+// Netlify (ou antes do primeiro upload), cai no arquivo estático em /public.
+// As imagens enviadas são servidas por /api/site-image/[key].
 export const SITE_IMAGES: Record<
   SiteImageKey,
   { pathname: string; fallback: string }
@@ -26,10 +26,12 @@ export const SITE_IMAGES: Record<
 };
 
 export async function getSiteImageUrl(key: SiteImageKey): Promise<string> {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) return SITE_IMAGES[key].fallback;
+  const store = getSiteStore();
+  if (!store) return SITE_IMAGES[key].fallback;
   try {
-    const blob = await head(SITE_IMAGES[key].pathname);
-    return blob.url;
+    const meta = await store.getMetadata(SITE_IMAGES[key].pathname);
+    if (!meta) return SITE_IMAGES[key].fallback;
+    return `/api/site-image/${key}?v=${encodeURIComponent((meta.etag ?? "").replace(/\W/g, ""))}`;
   } catch {
     return SITE_IMAGES[key].fallback;
   }

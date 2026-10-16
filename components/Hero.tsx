@@ -25,7 +25,7 @@ export function Hero({
         className="absolute inset-0"
         style={{
           background:
-            "linear-gradient(90deg, rgba(11,61,46,0.95) 10%, rgba(11,61,46,0.55) 55%, rgba(11,61,46,0.25) 100%)",
+            "linear-gradient(90deg, rgba(18, 63, 36,0.95) 10%, rgba(18, 63, 36,0.55) 55%, rgba(18, 63, 36,0.25) 100%)",
         }}
       />
       {/* Esconde a marca d'água da arte original (símbolo "N") que ocupa a
@@ -35,7 +35,7 @@ export function Hero({
         className="absolute inset-0"
         style={{
           background:
-            "linear-gradient(180deg, rgba(11,61,46,0) 38%, rgba(11,61,46,0.9) 58%, rgba(11,61,46,1) 68%)",
+            "linear-gradient(180deg, rgba(18, 63, 36,0) 38%, rgba(18, 63, 36,0.9) 58%, rgba(18, 63, 36,1) 68%)",
         }}
       />
 
