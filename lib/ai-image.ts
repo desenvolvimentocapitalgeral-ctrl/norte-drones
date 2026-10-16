@@ -12,7 +12,7 @@ function client(): OpenAI {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     throw new Error(
-      "OPENAI_API_KEY não configurado. Adicione essa variável de ambiente na Vercel (Project Settings → Environment Variables) e faça um redeploy."
+      "OPENAI_API_KEY não configurado. Adicione essa variável de ambiente no Netlify (Site configuration → Environment Variables) e faça um redeploy."
     );
   }
   return new OpenAI({ apiKey });

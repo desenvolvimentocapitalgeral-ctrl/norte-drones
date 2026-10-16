@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@vercel/blob": "^2.8.0",
+    "@netlify/blobs": "^11.1.4",
     "next": "14.2.35",
     "openai": "^7.23.0",
     "qrcode": "^1.5.4",

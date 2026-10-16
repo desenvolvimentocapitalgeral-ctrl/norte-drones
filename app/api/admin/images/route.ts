@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { put } from "@vercel/blob";
+import { getSiteStore } from "@/lib/blob-store";
 import { SITE_IMAGES, SiteImageKey } from "@/lib/site-images";
 
 export const dynamic = "force-dynamic";
@@ -7,12 +7,10 @@ export const dynamic = "force-dynamic";
 const MAX_SIZE_BYTES = 8 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  const store = getSiteStore();
+  if (!store) {
     return NextResponse.json(
-      {
-        error:
-          "Vercel Blob não está configurado (falta BLOB_READ_WRITE_TOKEN). Crie um Blob Store no dashboard da Vercel e conecte ao projeto.",
-      },
+      { error: "Armazenamento (Netlify Blobs) indisponível neste ambiente. Use o site publicado no Netlify." },
       { status: 500 }
     );
   }
@@ -49,14 +47,10 @@ export async function POST(request: NextRequest) {
   const config = SITE_IMAGES[key as SiteImageKey];
 
   try {
-    const blob = await put(config.pathname, file, {
-      access: "public",
-      addRandomSuffix: false,
-      allowOverwrite: true,
-      contentType: file.type,
-      cacheControlMaxAge: 60,
+    await store.set(config.pathname, await file.arrayBuffer(), {
+      metadata: { contentType: file.type },
     });
-    return NextResponse.json({ ok: true, key, url: blob.url });
+    return NextResponse.json({ ok: true, key, url: `/api/site-image/${key}?v=${Date.now()}` });
   } catch (err) {
     return NextResponse.json(
       { error: "Não foi possível enviar a imagem. " + (err as Error).message },
